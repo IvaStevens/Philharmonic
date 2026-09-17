@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "test-result",
+  "title": "TestResult",
+  "description": "Produced by the Tester. Included in the PR body by DevOps.",
+  "type": "object",
+  "required": ["status", "tests", "a11y_failures", "blockers"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["passed", "failed", "blocked"]
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "ac_criterion", "passed", "output"],
+        "properties": {
+          "name": { "type": "string", "description": "Test name (should reflect the AC criterion it covers)" },
+          "ac_criterion": { "type": "string", "description": "The AC criterion this test verifies" },
+          "passed": { "type": "boolean" },
+          "output": { "type": "string", "description": "Test runner output or error message" }
+        }
+      }
+    },
+    "a11y_failures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule", "impact", "element", "description"],
+        "properties": {
+          "rule": { "type": "string" },
+          "impact": {
+            "type": "string",
+            "enum": ["critical", "serious", "moderate", "minor"]
+          },
+          "element": { "type": "string", "description": "CSS selector or element description" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Reasons testing could not complete (only when status is 'blocked')"
+    }
+  },
+  "additionalProperties": false
+}

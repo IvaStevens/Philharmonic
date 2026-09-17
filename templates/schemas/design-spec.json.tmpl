@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "design-spec",
+  "title": "DesignSpec",
+  "description": "Produced by the Designer. Passed to Architect and Developer.",
+  "type": "object",
+  "required": [
+    "components_to_use",
+    "components_to_create",
+    "design_frames",
+    "wcag_concerns",
+    "ui_notes",
+    "missing_design_note"
+  ],
+  "properties": {
+    "components_to_use": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "path", "notes"],
+        "properties": {
+          "name": { "type": "string" },
+          "path": { "type": "string", "description": "Path to the component in the library" },
+          "notes": { "type": "string" }
+        }
+      },
+      "description": "Existing components the implementation should use"
+    },
+    "components_to_create": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "description"],
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      },
+      "description": "New components that need to be created"
+    },
+    "design_frames": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["url", "notes"],
+        "properties": {
+          "url": { "type": "string", "format": "uri" },
+          "notes": { "type": "string" }
+        }
+      },
+      "description": "Key design frames (screenshots or deep-link URLs) with notes"
+    },
+    "wcag_concerns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "WCAG concerns visible in the design (contrast, touch targets, focus order, etc.)"
+    },
+    "ui_notes": {
+      "type": "string",
+      "description": "Additional UI notes, interaction patterns, or designer observations"
+    },
+    "missing_design_note": {
+      "type": ["string", "null"],
+      "description": "Set if design_url was absent from TaskSpec; describes how DesignSpec was derived"
+    }
+  },
+  "additionalProperties": false
+}

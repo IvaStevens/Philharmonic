@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "deploy-status",
+  "title": "DeployStatus",
+  "description": "Produced by DevOps. Final output of the workflow for one ticket.",
+  "type": "object",
+  "required": ["status", "pr_url", "ci_status", "ci_failures", "review_comments", "notes"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["ready", "ci_failing", "changes_requested", "blocked"]
+    },
+    "pr_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL of the created PR"
+    },
+    "ci_status": {
+      "type": "string",
+      "enum": ["passing", "failing", "pending"]
+    },
+    "ci_failures": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "CI check names that failed (empty when passing)"
+    },
+    "review_comments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["comment_id", "author", "file", "line", "body"],
+        "properties": {
+          "comment_id": { "type": "string" },
+          "author": { "type": "string" },
+          "file": { "type": ["string", "null"] },
+          "line": { "type": "integer", "minimum": 0 },
+          "body": { "type": "string" }
+        }
+      },
+      "description": "Human review comments verbatim — passed to Developer for evaluation"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional context from DevOps (CI output, blockers, etc.)"
+    }
+  },
+  "additionalProperties": false
+}

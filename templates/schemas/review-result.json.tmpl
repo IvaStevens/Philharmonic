@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "review-result",
+  "title": "ReviewResult",
+  "description": "Produced by the Reviewer. Passed to the Developer (on retry) or DevOps (on approval).",
+  "type": "object",
+  "required": ["status", "ac_coverage", "findings", "standard_violations"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["approved", "changes_requested"]
+    },
+    "ac_coverage": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["criterion", "met", "notes"],
+        "properties": {
+          "criterion": { "type": "string" },
+          "met": { "type": "boolean" },
+          "notes": { "type": "string" }
+        }
+      },
+      "description": "Pass/fail verdict for each AC criterion"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "file", "line", "description"],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low"]
+          },
+          "file": { "type": "string" },
+          "line": { "type": "integer", "minimum": 0 },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "standard_violations": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Violations of the project coding standards"
+    }
+  },
+  "additionalProperties": false
+}

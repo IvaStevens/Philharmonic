@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "task-spec",
+  "title": "TaskSpec",
+  "description": "Produced by the Product Owner. Passed to all downstream agents.",
+  "type": "object",
+  "required": [
+    "ticket_id",
+    "title",
+    "branch",
+    "acceptance_criteria",
+    "out_of_scope",
+    "linked_docs",
+    "dependencies",
+    "domain",
+    "key_files",
+    "authors",
+    "notes"
+  ],
+  "properties": {
+    "ticket_id": {
+      "type": "string",
+      "description": "The ticket identifier (e.g. PROJ-1234)"
+    },
+    "title": {
+      "type": "string",
+      "description": "Human-readable ticket title"
+    },
+    "branch": {
+      "type": "string",
+      "description": "Git branch name for this ticket (e.g. PROJ-1234-short-slug)"
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Each acceptance criterion as a discrete string"
+    },
+    "out_of_scope": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Items explicitly out of scope for this ticket"
+    },
+    "linked_docs": {
+      "type": "array",
+      "items": { "type": "string", "format": "uri" },
+      "description": "URLs to linked documentation (e.g. specs, background pages)"
+    },
+    "design_url": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "description": "URL to the design file for this ticket, or null if absent"
+    },
+    "dependencies": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Ticket IDs this ticket depends on"
+    },
+    "domain": {
+      "type": "string",
+      "description": "Codebase domain / feature area this ticket belongs to"
+    },
+    "key_files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Key source files relevant to this ticket"
+    },
+    "authors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "email", "commits"],
+        "properties": {
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "commits": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "description": "Recent authors of the relevant code, ranked by commit count"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional context, ambiguities flagged, or constraints noted by the PO"
+    }
+  },
+  "additionalProperties": false
+}

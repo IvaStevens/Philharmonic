@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "implementation-plan",
+  "title": "ImplementationPlan",
+  "description": "Produced by the Architect after three self-audit passes. Requires human approval before the Developer runs.",
+  "type": "object",
+  "required": [
+    "approach",
+    "files_to_modify",
+    "files_to_create",
+    "patterns_to_follow",
+    "tests_to_update",
+    "risks",
+    "complexity",
+    "audit_summary"
+  ],
+  "properties": {
+    "approach": {
+      "type": "string",
+      "description": "Prose summary of the implementation approach and rationale"
+    },
+    "files_to_modify": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "reason"],
+        "properties": {
+          "path": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "files_to_create": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "reason"],
+        "properties": {
+          "path": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "patterns_to_follow": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Existing patterns in the codebase the implementation should mirror"
+    },
+    "tests_to_update": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Test files that need to be updated to reflect the change"
+    },
+    "risks": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Risks or constraints the Developer should be aware of"
+    },
+    "complexity": {
+      "type": "string",
+      "enum": ["low", "medium", "high"]
+    },
+    "audit_summary": {
+      "type": "object",
+      "required": ["ac_coverage_pass", "risk_pass", "scope_pass"],
+      "properties": {
+        "ac_coverage_pass": {
+          "type": "string",
+          "enum": ["clean", "findings_resolved"],
+          "description": "Result of the AC coverage self-audit pass"
+        },
+        "risk_pass": {
+          "type": "string",
+          "enum": ["clean", "findings_resolved"],
+          "description": "Result of the risk self-audit pass"
+        },
+        "scope_pass": {
+          "type": "string",
+          "enum": ["clean", "findings_resolved"],
+          "description": "Result of the scope self-audit pass"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

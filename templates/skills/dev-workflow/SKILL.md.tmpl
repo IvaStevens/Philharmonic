@@ -1,0 +1,31 @@
+---
+description: Run the {{PROJECT_NAME}} dev workflow for a single ticket
+argument-hint: "<ticket-id>"
+---
+
+Run the dev-workflow orchestrator for the given ticket.
+
+**Usage:** `/dev-workflow TICKET-123`
+
+**Hard rules (enforced by the workflow):**
+- One ticket at a time — the workflow stops when the PR is ready and waits for human input
+- Never merges to `{{PR_TARGET_BRANCH}}` — merging is always a human action
+
+## Steps
+
+1. Invoke the Workflow tool with script at `.claude/workflows/dev-workflow.js`
+2. Pass args: `{ ticket_id: "$ARGUMENTS" }`
+3. If the workflow returns `paused: true` (awaiting plan approval), show the ImplementationPlan to the user and wait for them to confirm before re-running
+4. Report the final DeployStatus (or halt reason) to the user
+
+## Re-running after plan approval
+
+After a human approves the ImplementationPlan, re-invoke with the same ticket ID to continue from the Implementation stage. The workflow does not resume automatically — it requires explicit re-invocation.
+
+## With tests
+
+To include the Tester stage, pass `with_tests: true`:
+
+```
+Workflow({ scriptPath: '.claude/workflows/dev-workflow.js', args: { ticket_id: "TICKET-123", with_tests: true } })
+```

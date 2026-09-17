@@ -1,0 +1,650 @@
+export const meta = {
+  name: '{{PROJECT_NAME}}-dev-workflow',
+  description: 'Ticket → PR workflow for {{PROJECT_NAME}}. One ticket at a time. Never merges.',
+  phases: [
+    { title: 'Requirements' },
+    { title: 'Design' },
+    { title: 'Architecture' },
+    { title: 'Implementation' },
+    { title: 'Review' },
+    { title: 'Testing' },
+    { title: 'Deploy' },
+  ],
+}
+
+// ─── Hard constants ───────────────────────────────────────────────────────────
+const MAX_INTERNAL_RETRIES = {{MAX_INTERNAL_RETRIES}}
+const MAX_PR_REVIEW_CYCLES = {{MAX_PR_REVIEW_CYCLES}}
+const PLAN_APPROVAL = '{{PLAN_APPROVAL}}' === 'y'
+const TESTER_DEFAULT = '{{TESTER_DEFAULT}}' === 'y'
+const HAS_DESIGN_TOOL = '{{DESIGN_TOOL}}' !== '' && '{{DESIGN_TOOL}}' !== 'none'
+const HAS_E2E = '{{E2E_FRAMEWORK}}' !== '' && '{{E2E_FRAMEWORK}}' !== 'none'
+const HAS_NOTIFICATION = '{{NOTIFICATION_MCP}}' !== '' && '{{NOTIFICATION_MCP}}' !== 'none'
+
+// ─── JSON Schemas for structured outputs ─────────────────────────────────────
+
+const TASK_SPEC_SCHEMA = {
+  type: 'object',
+  required: ['ticket_id', 'title', 'branch', 'acceptance_criteria', 'out_of_scope',
+             'linked_docs', 'dependencies', 'domain', 'key_files', 'authors', 'notes'],
+  properties: {
+    ticket_id: { type: 'string' },
+    title: { type: 'string' },
+    branch: { type: 'string' },
+    acceptance_criteria: { type: 'array', items: { type: 'string' } },
+    out_of_scope: { type: 'array', items: { type: 'string' } },
+    linked_docs: { type: 'array', items: { type: 'string' } },
+    design_url: { type: ['string', 'null'] },
+    dependencies: { type: 'array', items: { type: 'string' } },
+    domain: { type: 'string' },
+    key_files: { type: 'array', items: { type: 'string' } },
+    authors: { type: 'array' },
+    notes: { type: 'string' },
+    // blocked case
+    status: { type: 'string', enum: ['blocked'] },
+    reason: { type: 'string' },
+  },
+}
+
+const DESIGN_SPEC_SCHEMA = {
+  type: 'object',
+  required: ['components_to_use', 'components_to_create', 'design_frames',
+             'wcag_concerns', 'ui_notes', 'missing_design_note'],
+  properties: {
+    components_to_use: { type: 'array' },
+    components_to_create: { type: 'array' },
+    design_frames: { type: 'array' },
+    wcag_concerns: { type: 'array', items: { type: 'string' } },
+    ui_notes: { type: 'string' },
+    missing_design_note: { type: ['string', 'null'] },
+  },
+}
+
+const IMPL_PLAN_SCHEMA = {
+  type: 'object',
+  required: ['approach', 'files_to_modify', 'files_to_create', 'patterns_to_follow',
+             'tests_to_update', 'risks', 'complexity', 'audit_summary'],
+  properties: {
+    approach: { type: 'string' },
+    files_to_modify: { type: 'array' },
+    files_to_create: { type: 'array' },
+    patterns_to_follow: { type: 'array', items: { type: 'string' } },
+    tests_to_update: { type: 'array', items: { type: 'string' } },
+    risks: { type: 'array', items: { type: 'string' } },
+    complexity: { type: 'string', enum: ['low', 'medium', 'high'] },
+    audit_summary: { type: 'object' },
+  },
+}
+
+const NAG_RESULT_SCHEMA = {
+  type: 'object',
+  required: ['verdict', 'concerns'],
+  properties: {
+    verdict: { type: 'string', enum: ['pass', 'fail'] },
+    concerns: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['concern', 'rating'],
+        properties: {
+          concern: { type: 'string' },
+          rating: { type: 'string', enum: ['high', 'medium', 'low'] },
+        }
+      }
+    },
+  },
+}
+
+const IMPL_RESULT_SCHEMA = {
+  type: 'object',
+  required: ['status', 'files_changed', 'tests_run', 'blockers'],
+  properties: {
+    status: { type: 'string', enum: ['complete', 'blocked'] },
+    files_changed: { type: 'array', items: { type: 'string' } },
+    tests_run: { type: 'array' },
+    blockers: { type: 'array', items: { type: 'string' } },
+    trigger_review: { type: 'boolean' },
+    pr_comment_dispositions: { type: 'array' },
+  },
+}
+
+const REVIEW_RESULT_SCHEMA = {
+  type: 'object',
+  required: ['status', 'ac_coverage', 'findings', 'standard_violations'],
+  properties: {
+    status: { type: 'string', enum: ['approved', 'changes_requested'] },
+    ac_coverage: { type: 'array' },
+    findings: { type: 'array' },
+    standard_violations: { type: 'array', items: { type: 'string' } },
+  },
+}
+
+const TEST_RESULT_SCHEMA = {
+  type: 'object',
+  required: ['status', 'tests', 'a11y_failures', 'blockers'],
+  properties: {
+    status: { type: 'string', enum: ['passed', 'failed', 'blocked'] },
+    tests: { type: 'array' },
+    a11y_failures: { type: 'array' },
+    blockers: { type: 'array', items: { type: 'string' } },
+  },
+}
+
+const DEPLOY_STATUS_SCHEMA = {
+  type: 'object',
+  required: ['status', 'pr_url', 'ci_status', 'ci_failures', 'review_comments', 'notes'],
+  properties: {
+    status: { type: 'string', enum: ['ready', 'ci_failing', 'changes_requested', 'blocked'] },
+    pr_url: { type: 'string' },
+    ci_status: { type: 'string', enum: ['passing', 'failing', 'pending'] },
+    ci_failures: { type: 'array', items: { type: 'string' } },
+    review_comments: { type: 'array' },
+    notes: { type: 'string' },
+  },
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
+const { ticket_id, with_tests = TESTER_DEFAULT } = args || {}
+
+if (!ticket_id) {
+  throw new Error('args.ticket_id is required. Usage: { ticket_id: "PROJ-1234" }')
+}
+
+log(`Starting dev workflow for ticket: ${ticket_id}`)
+
+// ── Step 1: Product Owner ─────────────────────────────────────────────────────
+phase('Requirements')
+log('Product Owner: validating ticket and producing TaskSpec...')
+
+const taskSpec = await agent(
+  `You are the Product Owner agent for {{PROJECT_NAME}}.
+
+Read the ticket "${ticket_id}" and produce a TaskSpec according to your agent instructions.
+
+Ticket ID: ${ticket_id}`,
+  { agentType: 'product-owner', schema: TASK_SPEC_SCHEMA, phase: 'Requirements' }
+)
+
+if (!taskSpec || taskSpec.status === 'blocked') {
+  log(`HALTED — Product Owner blocked: ${taskSpec?.reason || 'unknown reason'}`)
+  return { halted: true, stage: 'product-owner', reason: taskSpec?.reason }
+}
+
+log(`TaskSpec produced for: ${taskSpec.title} (branch: ${taskSpec.branch})`)
+
+// ── Nag: stress-test TaskSpec ────────────────────────────────────────────────
+log('Nag: stress-testing TaskSpec...')
+let nagResult = await agent(
+  `You are the Nag agent for {{PROJECT_NAME}}.
+
+Agent type reviewed: product-owner
+Artifact: TaskSpec
+
+Ticket ID: ${ticket_id}
+
+TaskSpec to review:
+${JSON.stringify(taskSpec, null, 2)}`,
+  { agentType: 'nag', schema: NAG_RESULT_SCHEMA, phase: 'Requirements' }
+)
+if (nagResult?.verdict === 'fail' && nagResult.concerns?.length > 0) {
+  log(`Nag raised ${nagResult.concerns.length} concern(s) on TaskSpec — sending back to Product Owner for revision...`)
+  taskSpec = await agent(
+    `You are the Product Owner agent for {{PROJECT_NAME}}.
+
+Your TaskSpec was reviewed and the following concerns were raised. Address them and produce a revised TaskSpec.
+
+Ticket ID: ${ticket_id}
+
+Current TaskSpec:
+${JSON.stringify(taskSpec, null, 2)}
+
+Nag concerns:
+${JSON.stringify(nagResult.concerns, null, 2)}`,
+    { agentType: 'product-owner', schema: TASK_SPEC_SCHEMA, phase: 'Requirements' }
+  )
+  log('Product Owner revised TaskSpec.')
+} else {
+  log('Nag: TaskSpec passed.')
+}
+
+// ── Step 2: Create branch ─────────────────────────────────────────────────────
+log(`Creating branch: ${taskSpec.branch}`)
+await agent(
+  `Create git branch "${taskSpec.branch}" from {{PR_TARGET_BRANCH}} and push it.
+
+Run:
+  git checkout {{PR_TARGET_BRANCH}} && git pull
+  git checkout -b ${taskSpec.branch}
+  git push -u origin ${taskSpec.branch}
+
+Report success or any error.`,
+  { label: 'create-branch', phase: 'Requirements' }
+)
+
+// ── Step 3: Designer (conditional) ───────────────────────────────────────────
+let designSpec = null
+
+if (HAS_DESIGN_TOOL) {
+  phase('Design')
+  log('Designer: deep-diving design files...')
+  designSpec = await agent(
+    `You are the Designer agent for {{PROJECT_NAME}}.
+
+TaskSpec:
+${JSON.stringify(taskSpec, null, 2)}
+
+Investigate the design files linked in the TaskSpec and produce a DesignSpec according to your agent instructions.`,
+    { agentType: 'designer', schema: DESIGN_SPEC_SCHEMA, phase: 'Design' }
+  )
+  log('DesignSpec produced.')
+
+  // ── Nag: stress-test DesignSpec ────────────────────────────────────────────
+  log('Nag: stress-testing DesignSpec...')
+  nagResult = await agent(
+    `You are the Nag agent for {{PROJECT_NAME}}.
+
+Agent type reviewed: designer
+Artifact: DesignSpec
+
+TaskSpec (for context):
+${JSON.stringify(taskSpec, null, 2)}
+
+DesignSpec to review:
+${JSON.stringify(designSpec, null, 2)}`,
+    { agentType: 'nag', schema: NAG_RESULT_SCHEMA, phase: 'Design' }
+  )
+  if (nagResult?.verdict === 'fail' && nagResult.concerns?.length > 0) {
+    log(`Nag raised ${nagResult.concerns.length} concern(s) on DesignSpec — sending back to Designer for revision...`)
+    designSpec = await agent(
+      `You are the Designer agent for {{PROJECT_NAME}}.
+
+Your DesignSpec was reviewed and the following concerns were raised. Address them and produce a revised DesignSpec.
+
+TaskSpec:
+${JSON.stringify(taskSpec, null, 2)}
+
+Current DesignSpec:
+${JSON.stringify(designSpec, null, 2)}
+
+Nag concerns:
+${JSON.stringify(nagResult.concerns, null, 2)}`,
+      { agentType: 'designer', schema: DESIGN_SPEC_SCHEMA, phase: 'Design' }
+    )
+    log('Designer revised DesignSpec.')
+  } else {
+    log('Nag: DesignSpec passed.')
+  }
+}
+
+// ── Step 4: Architect ─────────────────────────────────────────────────────────
+phase('Architecture')
+log('Architect: analysing codebase and producing ImplementationPlan...')
+
+const implPlan = await agent(
+  `You are the Architect agent for {{PROJECT_NAME}}.
+
+TaskSpec:
+${JSON.stringify(taskSpec, null, 2)}
+
+${designSpec ? `DesignSpec:\n${JSON.stringify(designSpec, null, 2)}` : 'DesignSpec: null (no design tool configured)'}
+
+Run your configured skills, write the context file, perform your three self-audit passes, then produce the ImplementationPlan.`,
+  { agentType: 'architect', schema: IMPL_PLAN_SCHEMA, phase: 'Architecture' }
+)
+
+log(`ImplementationPlan produced. Complexity: ${implPlan.complexity}`)
+
+// ── Nag: stress-test ImplementationPlan ──────────────────────────────────────
+log('Nag: stress-testing ImplementationPlan...')
+nagResult = await agent(
+  `You are the Nag agent for {{PROJECT_NAME}}.
+
+Agent type reviewed: architect
+Artifact: ImplementationPlan
+
+TaskSpec (for context):
+${JSON.stringify(taskSpec, null, 2)}
+
+ImplementationPlan to review:
+${JSON.stringify(implPlan, null, 2)}`,
+  { agentType: 'nag', schema: NAG_RESULT_SCHEMA, phase: 'Architecture' }
+)
+if (nagResult?.verdict === 'fail' && nagResult.concerns?.length > 0) {
+  log(`Nag raised ${nagResult.concerns.length} concern(s) on ImplementationPlan — sending back to Architect for revision...`)
+  implPlan = await agent(
+    `You are the Architect agent for {{PROJECT_NAME}}.
+
+Your ImplementationPlan was reviewed and the following concerns were raised. Address them and produce a revised ImplementationPlan.
+
+TaskSpec:
+${JSON.stringify(taskSpec, null, 2)}
+
+${designSpec ? `DesignSpec:\n${JSON.stringify(designSpec, null, 2)}` : 'DesignSpec: null'}
+
+Current ImplementationPlan:
+${JSON.stringify(implPlan, null, 2)}
+
+Nag concerns:
+${JSON.stringify(nagResult.concerns, null, 2)}`,
+    { agentType: 'architect', schema: IMPL_PLAN_SCHEMA, phase: 'Architecture' }
+  )
+  log(`Architect revised ImplementationPlan. Complexity: ${implPlan.complexity}`)
+} else {
+  log('Nag: ImplementationPlan passed.')
+}
+
+// Human approval gate
+if (PLAN_APPROVAL) {
+  log('*** PAUSED — Human approval required before implementation begins. ***')
+  log('Review the ImplementationPlan above, then re-run this workflow to continue.')
+  return {
+    paused: true,
+    stage: 'plan-approval',
+    task_spec: taskSpec,
+    design_spec: designSpec,
+    implementation_plan: implPlan,
+  }
+}
+
+// ── Step 5: Developer → Reviewer loop ────────────────────────────────────────
+phase('Implementation')
+
+let implResult = null
+let reviewResult = null
+let internalAttempts = 0
+
+while (internalAttempts < MAX_INTERNAL_RETRIES) {
+  log(`Developer: implementing (attempt ${internalAttempts + 1}/${MAX_INTERNAL_RETRIES})...`)
+  implResult = await agent(
+    `You are the Developer agent for {{PROJECT_NAME}}.
+
+TaskSpec:
+${JSON.stringify(taskSpec, null, 2)}
+
+ImplementationPlan:
+${JSON.stringify(implPlan, null, 2)}
+
+${designSpec ? `DesignSpec:\n${JSON.stringify(designSpec, null, 2)}` : ''}
+${reviewResult ? `\nPrevious ReviewResult (address these findings):\n${JSON.stringify(reviewResult, null, 2)}` : ''}
+
+Implement the plan, run tests, and produce an ImplementationResult.`,
+    { agentType: 'implementer', schema: IMPL_RESULT_SCHEMA, phase: 'Implementation' }
+  )
+
+  if (!implResult || implResult.status === 'blocked') {
+    log(`HALTED — Developer blocked: ${implResult?.blockers?.join(', ')}`)
+    return { halted: true, stage: 'developer', blockers: implResult?.blockers }
+  }
+
+  phase('Review')
+  log('Reviewer: verifying implementation...')
+  reviewResult = await agent(
+    `You are the Reviewer agent for {{PROJECT_NAME}}.
+
+TaskSpec:
+${JSON.stringify(taskSpec, null, 2)}
+
+ImplementationResult:
+${JSON.stringify(implResult, null, 2)}
+
+Run your configured review skills and produce a ReviewResult.`,
+    { agentType: 'reviewer', schema: REVIEW_RESULT_SCHEMA, phase: 'Review' }
+  )
+
+  if (reviewResult.status === 'approved') {
+    log('Reviewer approved the implementation.')
+    break
+  }
+
+  internalAttempts++
+  log(`Reviewer requested changes (attempt ${internalAttempts}/${MAX_INTERNAL_RETRIES}).`)
+  phase('Implementation')
+}
+
+if (reviewResult.status !== 'approved') {
+  log(`HALTED — Reviewer still requesting changes after ${MAX_INTERNAL_RETRIES} attempts.`)
+  return { halted: true, stage: 'review-loop', review_result: reviewResult }
+}
+
+// ── Step 6: Tester (optional) ─────────────────────────────────────────────────
+let testResult = null
+
+if (HAS_E2E && with_tests) {
+  phase('Testing')
+  log('Tester: writing and running e2e tests...')
+  testResult = await agent(
+    `You are the Tester agent for {{PROJECT_NAME}}.
+
+TaskSpec:
+${JSON.stringify(taskSpec, null, 2)}
+
+ImplementationResult:
+${JSON.stringify(implResult, null, 2)}
+
+ReviewResult (must be approved before you run):
+${JSON.stringify(reviewResult, null, 2)}
+
+${designSpec ? `DesignSpec:\n${JSON.stringify(designSpec, null, 2)}` : ''}
+
+Write e2e tests for each AC criterion, run them, and report a TestResult.`,
+    { agentType: 'tester', schema: TEST_RESULT_SCHEMA, phase: 'Testing' }
+  )
+
+  if (testResult.status === 'blocked') {
+    log(`HALTED — Tester blocked: ${testResult.blockers?.join(', ')}`)
+    return { halted: true, stage: 'tester', blockers: testResult.blockers }
+  }
+}
+
+// ── Step 7–8: DevOps + PR review loop ────────────────────────────────────────
+phase('Deploy')
+log('DevOps: creating PR and monitoring CI...')
+
+let deployStatus = null
+let prReviewCycles = 0
+
+// Initial PR creation — Study Guide runs in parallel when configured
+{{#IF INCLUDE_STUDY_GUIDE}}
+log('Study Guide running in parallel with PR creation...')
+const _initResults = await parallel([
+  () => agent(
+    `You are the Study Guide agent for {{PROJECT_NAME}}.
+
+TaskSpec:
+${JSON.stringify(taskSpec, null, 2)}
+
+ImplementationPlan:
+${JSON.stringify(implPlan, null, 2)}
+
+ImplementationResult:
+${JSON.stringify(implResult, null, 2)}
+
+Review the Architect's plan and the Developer's implementation. Surface intermediate-to-advanced patterns as study entries and write the context file.`,
+    { agentType: 'study-guide', label: 'study-guide', phase: 'Review' }
+  ),
+  () => agent(
+    `You are the DevOps agent for {{PROJECT_NAME}}.
+
+TaskSpec:
+${JSON.stringify(taskSpec, null, 2)}
+
+ImplementationResult:
+${JSON.stringify(implResult, null, 2)}
+
+ReviewResult:
+${JSON.stringify(reviewResult, null, 2)}
+
+${testResult ? `TestResult:\n${JSON.stringify(testResult, null, 2)}` : ''}
+
+Create the PR, then monitor CI and human review comments. Produce a DeployStatus.`,
+    { agentType: 'devops', schema: DEPLOY_STATUS_SCHEMA, phase: 'Deploy' }
+  ),
+])
+deployStatus = _initResults[1]
+{{/IF}}
+
+// When Study Guide is not configured, create PR directly
+if (!deployStatus) {
+  deployStatus = await agent(
+    `You are the DevOps agent for {{PROJECT_NAME}}.
+
+TaskSpec:
+${JSON.stringify(taskSpec, null, 2)}
+
+ImplementationResult:
+${JSON.stringify(implResult, null, 2)}
+
+ReviewResult:
+${JSON.stringify(reviewResult, null, 2)}
+
+${testResult ? `TestResult:\n${JSON.stringify(testResult, null, 2)}` : ''}
+
+Create the PR, then monitor CI and human review comments. Produce a DeployStatus.`,
+    { agentType: 'devops', schema: DEPLOY_STATUS_SCHEMA, phase: 'Deploy' }
+  )
+}
+
+// Process deployStatus and handle PR review cycles
+while (true) {
+  if (deployStatus.status === 'ready') {
+    log(`SUCCESS — PR is ready: ${deployStatus.pr_url}`)
+    log('CI is green. Awaiting human merge. Workflow complete.')
+    {{#IF NOTIFICATION_MCP_ID}}
+    // Notify via {{NOTIFICATION_MCP}}
+    await agent(
+      `Send a notification via {{NOTIFICATION_MCP}} that the PR for "${taskSpec.ticket_id}: ${taskSpec.title}" is ready for merge.
+PR URL: ${deployStatus.pr_url}
+Use {{NOTIFICATION_MCP_ID}}* tools.`,
+      { label: 'notify', phase: 'Deploy' }
+    )
+    {{/IF}}
+    break
+  }
+
+  if (deployStatus.status === 'ci_failing') {
+    log(`HALTED — CI is failing: ${deployStatus.ci_failures?.join(', ')}`)
+    return { halted: true, stage: 'devops', ci_failures: deployStatus.ci_failures, pr_url: deployStatus.pr_url }
+  }
+
+  if (deployStatus.status === 'blocked') {
+    log(`HALTED — DevOps blocked: ${deployStatus.notes}`)
+    return { halted: true, stage: 'devops', notes: deployStatus.notes }
+  }
+
+  // changes_requested — enter PR review comment loop
+  if (prReviewCycles >= MAX_PR_REVIEW_CYCLES) {
+    log(`HALTED — Exceeded max PR review cycles (${MAX_PR_REVIEW_CYCLES}).`)
+    return { halted: true, stage: 'pr-review-loop', pr_url: deployStatus.pr_url }
+  }
+
+  prReviewCycles++
+  log(`PR review cycle ${prReviewCycles}/${MAX_PR_REVIEW_CYCLES}: Developer evaluating comments...`)
+  phase('Implementation')
+
+  // Developer evaluates PR review comments
+  implResult = await agent(
+    `You are the Developer agent for {{PROJECT_NAME}}.
+
+TaskSpec:
+${JSON.stringify(taskSpec, null, 2)}
+
+ImplementationPlan:
+${JSON.stringify(implPlan, null, 2)}
+
+You received human PR review comments. Evaluate each one and produce an ImplementationResult.
+
+Review comments:
+${JSON.stringify(deployStatus.review_comments, null, 2)}`,
+    { agentType: 'implementer', schema: IMPL_RESULT_SCHEMA, phase: 'Implementation' }
+  )
+
+  // Handle any escalations
+  if (implResult.pr_comment_dispositions) {
+    for (const d of implResult.pr_comment_dispositions) {
+      if (d.disposition === 'needs_context' && d.escalate_to === 'product_owner') {
+        log(`Escalating comment ${d.comment_id} to Product Owner for AC clarification...`)
+        await agent(
+          `You are the Product Owner agent for {{PROJECT_NAME}}.
+
+A Developer needs clarification on a PR review comment.
+
+TaskSpec:
+${JSON.stringify(taskSpec, null, 2)}
+
+Comment: ${d.notes}
+
+Provide a clear answer that the Developer can act on.`,
+          { agentType: 'product-owner', label: 'po-consult', phase: 'Implementation' }
+        )
+        log(`PO clarification received. Returning to Developer.`)
+      } else if (d.disposition === 'needs_context' && d.escalate_to === 'architect') {
+        log(`Escalating comment ${d.comment_id} to Architect for implementation guidance...`)
+        await agent(
+          `You are the Architect agent for {{PROJECT_NAME}}.
+
+A Developer needs clarification on a PR review comment about implementation approach.
+
+TaskSpec:
+${JSON.stringify(taskSpec, null, 2)}
+
+ImplementationPlan:
+${JSON.stringify(implPlan, null, 2)}
+
+Comment: ${d.notes}
+
+Provide a clear answer the Developer can act on.`,
+          { agentType: 'architect', label: 'architect-consult', phase: 'Implementation' }
+        )
+        log(`Architect clarification received. Returning to Developer.`)
+      }
+    }
+  }
+
+  // Re-verify before pushing
+  if (implResult.trigger_review) {
+    phase('Review')
+    log('Reviewer: re-verifying after PR comment fixes...')
+    reviewResult = await agent(
+      `You are the Reviewer agent for {{PROJECT_NAME}}.
+
+TaskSpec:
+${JSON.stringify(taskSpec, null, 2)}
+
+ImplementationResult (after PR comment fixes):
+${JSON.stringify(implResult, null, 2)}
+
+Run a focused re-review and produce a ReviewResult.`,
+      { agentType: 'reviewer', schema: REVIEW_RESULT_SCHEMA, phase: 'Review' }
+    )
+
+    if (reviewResult.status === 'changes_requested') {
+      internalAttempts++
+      if (internalAttempts >= MAX_INTERNAL_RETRIES) {
+        log(`HALTED — Reviewer still requesting changes after ${internalAttempts} total attempts.`)
+        return { halted: true, stage: 'review-loop-pr', review_result: reviewResult }
+      }
+    }
+  }
+
+  // Poll for updated CI status and review comments
+  phase('Deploy')
+  deployStatus = await agent(
+    `You are the DevOps agent for {{PROJECT_NAME}}.
+
+TaskSpec:
+${JSON.stringify(taskSpec, null, 2)}
+
+The PR already exists. Poll for new CI status and human review comments. Produce a DeployStatus.
+PR URL from previous status: ${deployStatus.pr_url}`,
+    { agentType: 'devops', schema: DEPLOY_STATUS_SCHEMA, phase: 'Deploy' }
+  )
+}
+
+// ── Final result ──────────────────────────────────────────────────────────────
+return {
+  ticket_id: taskSpec.ticket_id,
+  pr_url: deployStatus?.pr_url,
+  status: deployStatus?.status,
+  message: 'Workflow complete. Human merge required.',
+}

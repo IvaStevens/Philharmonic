@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "implementation-result",
+  "title": "ImplementationResult",
+  "description": "Produced by the Developer. Passed to the Reviewer and DevOps.",
+  "type": "object",
+  "required": ["status", "files_changed", "tests_run", "blockers"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["complete", "blocked"]
+    },
+    "files_changed": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Paths of files modified or created"
+    },
+    "tests_run": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["suite", "passed", "output"],
+        "properties": {
+          "suite": { "type": "string" },
+          "passed": { "type": "boolean" },
+          "output": { "type": "string" }
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Reasons the implementation could not complete (only when status is 'blocked')"
+    },
+    "trigger_review": {
+      "type": "boolean",
+      "description": "Set to true when the Developer addressed PR review comments and wants the Reviewer to re-verify before DevOps updates the PR",
+      "default": false
+    },
+    "pr_comment_dispositions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["comment_id", "disposition", "escalate_to", "notes"],
+        "properties": {
+          "comment_id": { "type": "string" },
+          "disposition": {
+            "type": "string",
+            "enum": ["addressed", "needs_context", "out_of_scope"]
+          },
+          "escalate_to": {
+            "type": ["string", "null"],
+            "enum": ["product_owner", "architect", null]
+          },
+          "notes": { "type": "string" }
+        }
+      },
+      "description": "Populated when responding to human PR review comments"
+    }
+  },
+  "additionalProperties": false
+}
