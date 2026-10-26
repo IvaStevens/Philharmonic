@@ -30,6 +30,7 @@ const TASK_SPEC_SCHEMA = {
   properties: {
     ticket_id: { type: 'string' },
     title: { type: 'string' },
+    project: { type: ['string', 'null'] },
     branch: { type: 'string' },
     acceptance_criteria: { type: 'array', items: { type: 'string' } },
     out_of_scope: { type: 'array', items: { type: 'string' } },
@@ -143,6 +144,19 @@ const DEPLOY_STATUS_SCHEMA = {
   },
 }
 
+// ─── Project scoping ──────────────────────────────────────────────────────────
+// Agents cannot be launched with a working directory, so once the Product Owner
+// resolves the ticket's project, every later prompt is prefixed with an explicit
+// instruction to work inside that project's directory.
+
+const PROJECTS_ROOT = '{{PROJECTS_ROOT}}'
+const SCOPED = PROJECTS_ROOT !== ''
+let projectPreamble = ''
+
+function run(prompt, opts) {
+  return agent(projectPreamble + prompt, opts)
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const { ticket_id, with_tests = TESTER_DEFAULT } = args || {}
@@ -157,7 +171,7 @@ log(`Starting dev workflow for ticket: ${ticket_id}`)
 phase('Requirements')
 log('Product Owner: validating ticket and producing TaskSpec...')
 
-const taskSpec = await agent(
+const taskSpec = await run(
   `You are the Product Owner agent for {{PROJECT_NAME}}.
 
 Read the ticket "${ticket_id}" and produce a TaskSpec according to your agent instructions.
@@ -173,9 +187,23 @@ if (!taskSpec || taskSpec.status === 'blocked') {
 
 log(`TaskSpec produced for: ${taskSpec.title} (branch: ${taskSpec.branch})`)
 
+if (SCOPED) {
+  const project = taskSpec.project
+  if (!project || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(project)) {
+    log(`HALTED — ticket has no valid Project field (got: ${JSON.stringify(project)})`)
+    return { halted: true, stage: 'project-resolution', reason: 'Ticket must name exactly one project directory.' }
+  }
+  const projectDir = `${PROJECTS_ROOT}/${project}`
+  projectPreamble = `PROJECT SCOPE: this ticket belongs to the project "${project}". Its directory is ${projectDir}.
+Before doing anything else, cd into ${projectDir}. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in ${PROJECTS_ROOT}/.claude or ${PROJECTS_ROOT}/tickets.
+
+`
+  log(`Project scope: ${projectDir}`)
+}
+
 // ── Nag: stress-test TaskSpec ────────────────────────────────────────────────
 log('Nag: stress-testing TaskSpec...')
-let nagResult = await agent(
+let nagResult = await run(
   `You are the Nag agent for {{PROJECT_NAME}}.
 
 Agent type reviewed: product-owner
@@ -189,7 +217,7 @@ ${JSON.stringify(taskSpec, null, 2)}`,
 )
 if (nagResult?.verdict === 'fail' && nagResult.concerns?.length > 0) {
   log(`Nag raised ${nagResult.concerns.length} concern(s) on TaskSpec — sending back to Product Owner for revision...`)
-  taskSpec = await agent(
+  taskSpec = await run(
     `You are the Product Owner agent for {{PROJECT_NAME}}.
 
 Your TaskSpec was reviewed and the following concerns were raised. Address them and produce a revised TaskSpec.
@@ -210,7 +238,7 @@ ${JSON.stringify(nagResult.concerns, null, 2)}`,
 
 // ── Step 2: Create branch ─────────────────────────────────────────────────────
 log(`Creating branch: ${taskSpec.branch}`)
-await agent(
+const branchResult = await run(
   `Create git branch "${taskSpec.branch}" from {{PR_TARGET_BRANCH}} and push it.
 
 Run:
@@ -218,9 +246,14 @@ Run:
   git checkout -b ${taskSpec.branch}
   git push -u origin ${taskSpec.branch}
 
-Report success or any error.`,
-  { label: 'create-branch', phase: 'Requirements' }
+If the directory is missing, is not a git repository, or has no remote, do not create anything — report ok=false with the error.`,
+  { label: 'create-branch', phase: 'Requirements',
+    schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, error: { type: 'string' } } } }
 )
+if (!branchResult || !branchResult.ok) {
+  log(`HALTED — could not create branch: ${branchResult?.error || 'unknown error'}`)
+  return { halted: true, stage: 'create-branch', reason: branchResult?.error }
+}
 
 // ── Step 3: Designer (conditional) ───────────────────────────────────────────
 let designSpec = null
@@ -228,7 +261,7 @@ let designSpec = null
 if (HAS_DESIGN_TOOL) {
   phase('Design')
   log('Designer: deep-diving design files...')
-  designSpec = await agent(
+  designSpec = await run(
     `You are the Designer agent for {{PROJECT_NAME}}.
 
 TaskSpec:
@@ -241,7 +274,7 @@ Investigate the design files linked in the TaskSpec and produce a DesignSpec acc
 
   // ── Nag: stress-test DesignSpec ────────────────────────────────────────────
   log('Nag: stress-testing DesignSpec...')
-  nagResult = await agent(
+  nagResult = await run(
     `You are the Nag agent for {{PROJECT_NAME}}.
 
 Agent type reviewed: designer
@@ -256,7 +289,7 @@ ${JSON.stringify(designSpec, null, 2)}`,
   )
   if (nagResult?.verdict === 'fail' && nagResult.concerns?.length > 0) {
     log(`Nag raised ${nagResult.concerns.length} concern(s) on DesignSpec — sending back to Designer for revision...`)
-    designSpec = await agent(
+    designSpec = await run(
       `You are the Designer agent for {{PROJECT_NAME}}.
 
 Your DesignSpec was reviewed and the following concerns were raised. Address them and produce a revised DesignSpec.
@@ -281,7 +314,7 @@ ${JSON.stringify(nagResult.concerns, null, 2)}`,
 phase('Architecture')
 log('Architect: analysing codebase and producing ImplementationPlan...')
 
-const implPlan = await agent(
+const implPlan = await run(
   `You are the Architect agent for {{PROJECT_NAME}}.
 
 TaskSpec:
@@ -297,7 +330,7 @@ log(`ImplementationPlan produced. Complexity: ${implPlan.complexity}`)
 
 // ── Nag: stress-test ImplementationPlan ──────────────────────────────────────
 log('Nag: stress-testing ImplementationPlan...')
-nagResult = await agent(
+nagResult = await run(
   `You are the Nag agent for {{PROJECT_NAME}}.
 
 Agent type reviewed: architect
@@ -312,7 +345,7 @@ ${JSON.stringify(implPlan, null, 2)}`,
 )
 if (nagResult?.verdict === 'fail' && nagResult.concerns?.length > 0) {
   log(`Nag raised ${nagResult.concerns.length} concern(s) on ImplementationPlan — sending back to Architect for revision...`)
-  implPlan = await agent(
+  implPlan = await run(
     `You are the Architect agent for {{PROJECT_NAME}}.
 
 Your ImplementationPlan was reviewed and the following concerns were raised. Address them and produce a revised ImplementationPlan.
@@ -356,7 +389,7 @@ let internalAttempts = 0
 
 while (internalAttempts < MAX_INTERNAL_RETRIES) {
   log(`Developer: implementing (attempt ${internalAttempts + 1}/${MAX_INTERNAL_RETRIES})...`)
-  implResult = await agent(
+  implResult = await run(
     `You are the Developer agent for {{PROJECT_NAME}}.
 
 TaskSpec:
@@ -379,7 +412,7 @@ Implement the plan, run tests, and produce an ImplementationResult.`,
 
   phase('Review')
   log('Reviewer: verifying implementation...')
-  reviewResult = await agent(
+  reviewResult = await run(
     `You are the Reviewer agent for {{PROJECT_NAME}}.
 
 TaskSpec:
@@ -413,7 +446,7 @@ let testResult = null
 if (HAS_E2E && with_tests) {
   phase('Testing')
   log('Tester: writing and running e2e tests...')
-  testResult = await agent(
+  testResult = await run(
     `You are the Tester agent for {{PROJECT_NAME}}.
 
 TaskSpec:
@@ -448,7 +481,7 @@ let prReviewCycles = 0
 {{#IF INCLUDE_STUDY_GUIDE}}
 log('Study Guide running in parallel with PR creation...')
 const _initResults = await parallel([
-  () => agent(
+  () => run(
     `You are the Study Guide agent for {{PROJECT_NAME}}.
 
 TaskSpec:
@@ -463,7 +496,7 @@ ${JSON.stringify(implResult, null, 2)}
 Review the Architect's plan and the Developer's implementation. Surface intermediate-to-advanced patterns as study entries and write the context file.`,
     { agentType: 'study-guide', label: 'study-guide', phase: 'Review' }
   ),
-  () => agent(
+  () => run(
     `You are the DevOps agent for {{PROJECT_NAME}}.
 
 TaskSpec:
@@ -486,7 +519,7 @@ deployStatus = _initResults[1]
 
 // When Study Guide is not configured, create PR directly
 if (!deployStatus) {
-  deployStatus = await agent(
+  deployStatus = await run(
     `You are the DevOps agent for {{PROJECT_NAME}}.
 
 TaskSpec:
@@ -512,7 +545,7 @@ while (true) {
     log('CI is green. Awaiting human merge. Workflow complete.')
     {{#IF NOTIFICATION_MCP_ID}}
     // Notify via {{NOTIFICATION_MCP}}
-    await agent(
+    await run(
       `Send a notification via {{NOTIFICATION_MCP}} that the PR for "${taskSpec.ticket_id}: ${taskSpec.title}" is ready for merge.
 PR URL: ${deployStatus.pr_url}
 Use {{NOTIFICATION_MCP_ID}}* tools.`,
@@ -543,7 +576,7 @@ Use {{NOTIFICATION_MCP_ID}}* tools.`,
   phase('Implementation')
 
   // Developer evaluates PR review comments
-  implResult = await agent(
+  implResult = await run(
     `You are the Developer agent for {{PROJECT_NAME}}.
 
 TaskSpec:
@@ -564,7 +597,7 @@ ${JSON.stringify(deployStatus.review_comments, null, 2)}`,
     for (const d of implResult.pr_comment_dispositions) {
       if (d.disposition === 'needs_context' && d.escalate_to === 'product_owner') {
         log(`Escalating comment ${d.comment_id} to Product Owner for AC clarification...`)
-        await agent(
+        await run(
           `You are the Product Owner agent for {{PROJECT_NAME}}.
 
 A Developer needs clarification on a PR review comment.
@@ -580,7 +613,7 @@ Provide a clear answer that the Developer can act on.`,
         log(`PO clarification received. Returning to Developer.`)
       } else if (d.disposition === 'needs_context' && d.escalate_to === 'architect') {
         log(`Escalating comment ${d.comment_id} to Architect for implementation guidance...`)
-        await agent(
+        await run(
           `You are the Architect agent for {{PROJECT_NAME}}.
 
 A Developer needs clarification on a PR review comment about implementation approach.
@@ -605,7 +638,7 @@ Provide a clear answer the Developer can act on.`,
   if (implResult.trigger_review) {
     phase('Review')
     log('Reviewer: re-verifying after PR comment fixes...')
-    reviewResult = await agent(
+    reviewResult = await run(
       `You are the Reviewer agent for {{PROJECT_NAME}}.
 
 TaskSpec:
@@ -629,7 +662,7 @@ Run a focused re-review and produce a ReviewResult.`,
 
   // Poll for updated CI status and review comments
   phase('Deploy')
-  deployStatus = await agent(
+  deployStatus = await run(
     `You are the DevOps agent for {{PROJECT_NAME}}.
 
 TaskSpec:

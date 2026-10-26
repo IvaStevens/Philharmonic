@@ -1,0 +1,16 @@
+---
+description: Write a new local ticket for one of your projects from a rough idea
+argument-hint: "<what you want, and which project>"
+---
+
+Create a ticket from the user's rough description.
+
+**Usage:** `/new-ticket add a dark mode toggle to bobuttons`
+
+## Steps
+
+1. Delegate to the `ticket-writer` agent with the user's text: `$ARGUMENTS`
+2. Relay the agent's result: the ticket ID(s), project, and the `/dev-workflow <ID>` command to run
+3. If the agent asks which project the work belongs to, ask the user and re-invoke with the answer
+
+Do not start the dev workflow automatically — the user decides when to run it.

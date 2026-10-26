@@ -6,6 +6,10 @@ argument-hint: "<ticket-id>"
 Run the dev-workflow orchestrator for the given ticket.
 
 **Usage:** `/dev-workflow TICKET-123`
+{{#IF LOCAL_TICKETS_DIR}}
+
+**Tickets are local files.** `/dev-workflow LOGIN-1` reads `{{LOCAL_TICKETS_DIR}}/LOGIN-1.md`. Copy `{{LOCAL_TICKETS_DIR}}/TEMPLATE.md` to start a new one. Use a short ID as the filename — it becomes the branch name.
+{{/IF}}
 
 **Hard rules (enforced by the workflow):**
 - One ticket at a time — the workflow stops when the PR is ready and waits for human input
@@ -13,7 +17,7 @@ Run the dev-workflow orchestrator for the given ticket.
 
 ## Steps
 
-1. Invoke the Workflow tool with script at `.claude/workflows/dev-workflow.js`
+1. Invoke the Workflow tool with script at `{{OUTPUT_DIR}}/workflows/dev-workflow.js`
 2. Pass args: `{ ticket_id: "$ARGUMENTS" }`
 3. If the workflow returns `paused: true` (awaiting plan approval), show the ImplementationPlan to the user and wait for them to confirm before re-running
 4. Report the final DeployStatus (or halt reason) to the user
@@ -27,5 +31,5 @@ After a human approves the ImplementationPlan, re-invoke with the same ticket ID
 To include the Tester stage, pass `with_tests: true`:
 
 ```
-Workflow({ scriptPath: '.claude/workflows/dev-workflow.js', args: { ticket_id: "TICKET-123", with_tests: true } })
+Workflow({ scriptPath: '{{OUTPUT_DIR}}/workflows/dev-workflow.js', args: { ticket_id: "TICKET-123", with_tests: true } })
 ```

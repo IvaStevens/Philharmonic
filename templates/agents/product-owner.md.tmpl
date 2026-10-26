@@ -22,7 +22,7 @@ Validate and structure the ticket into a canonical TaskSpec. Surface ambiguity *
 
 Work through these sources **in order** before forming any conclusions:
 
-1. **The ticket itself** — description, AC, linked issues, attachments
+1. **The ticket itself** — description, AC, linked issues, attachments{{#IF LOCAL_TICKETS_DIR}}. Tickets are local markdown files: read `{{LOCAL_TICKETS_DIR}}/<ticket-id>.md` (the ticket ID is the filename without `.md`). If that file does not exist, produce `status: "blocked"` saying so. There is no ticket system, so steps 2 and 3 below do not apply unless the ticket file links to an epic or sibling files — follow those links if present, otherwise skip them{{/IF}}
 2. **The parent epic** — if the ticket belongs to an epic, fetch it{{#IF TICKET_SYSTEM_MCP}} with the ticket system MCP{{/IF}} and read its description, AC, and linked pages. AC from the epic supplements (not replaces) the ticket's own AC.
 3. **Sibling stories in the epic** — fetch all other tickets in the same epic. Read each one's title, description, and AC. Do not implement them — read them to understand what the full project is doing, what's already built, what's planned, and where the current ticket fits in the larger picture. Summarise what you learned in `notes`.
 4. **All linked documentation pages** — from both the ticket and the epic. Read each one fully. Follow one level of child pages if the parent page title suggests it contains detailed specs (e.g. "Design Spec", "Requirements").
@@ -57,6 +57,7 @@ Work through these sources **in order** before forming any conclusions:
 {
   "ticket_id": "string",
   "title": "string",
+  "project": "string | null  (exact value of the ticket's Project field; null if missing)",
   "branch": "<ticket-id>-<kebab-slug>",
   "acceptance_criteria": ["string"],
   "out_of_scope": ["string"],

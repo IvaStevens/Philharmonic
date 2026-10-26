@@ -119,6 +119,14 @@ def collect_config_interactive() -> dict:
         "",
     )
 
+    cfg["local_tickets_dir"] = ask_if(
+        not _is_truthy(cfg["ticket_system"]),
+        "  Directory for local ticket files? (e.g. tickets, blank for none)",
+        "",
+    )
+    if cfg["local_tickets_dir"]:
+        cfg["projects_root"] = ask("  Directory containing your projects? (for the ticket writer)", ".")
+
     print("\n=== Design tool ===")
     cfg["design_tool"] = ask("Design tool? (figma/sketch/other/none)", "none")
     has_design = _is_truthy(cfg["design_tool"])
@@ -251,6 +259,9 @@ def build_variables(cfg: dict) -> dict:
         "CONTEXT_FILE_PATH": cfg.get("context_file_path", ""),
         "TICKET_SYSTEM": cfg.get("ticket_system", ""),
         "TICKET_SYSTEM_MCP": cfg.get("ticket_system_mcp", ""),
+        "LOCAL_TICKETS_DIR": cfg.get("local_tickets_dir", ""),
+        "OUTPUT_DIR": str(Path(cfg.get("output_dir", ".claude")).resolve()),
+        "PROJECTS_ROOT": cfg.get("projects_root", ""),
         "DESIGN_TOOL": cfg.get("design_tool", ""),
         "DESIGN_TOOL_MCP": cfg.get("design_tool_mcp", ""),
         "DESIGN_DEEPDIVE_SKILL": cfg.get("design_deepdive_skill", ""),
@@ -336,6 +347,13 @@ def generate_files(cfg: dict, output_dir: Path):
     if _is_truthy(variables.get("INCLUDE_STUDY_GUIDE", "")):
         tmpl = load_template("agents/study-guide.md.tmpl")
         write_file(output_dir / "agents" / "study-guide.md", render(tmpl, variables))
+
+    # Ticket writer (local tickets only)
+    if _is_truthy(variables.get("LOCAL_TICKETS_DIR", "")):
+        tmpl = load_template("agents/ticket-writer.md.tmpl")
+        write_file(output_dir / "agents" / "ticket-writer.md", render(tmpl, variables))
+        tmpl = load_template("skills/new-ticket/SKILL.md.tmpl")
+        write_file(output_dir / "skills" / "new-ticket" / "SKILL.md", render(tmpl, variables))
 
     # Workflow orchestrator
     tmpl = load_template("workflows/dev-workflow.js.tmpl")
