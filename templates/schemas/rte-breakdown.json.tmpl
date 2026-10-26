@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "rte-breakdown",
+  "title": "RteBreakdown",
+  "description": "Produced by the Release Train Engineer. Splits an ImplementationPlan into reviewable pull requests. Requires human approval before the Developer runs.",
+  "type": "object",
+  "required": ["summary", "total_prs", "units"],
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "How many PRs there are and their shape (parallel, series or mixed)"
+    },
+    "total_prs": {
+      "type": "integer",
+      "description": "Number of units; must equal units.length"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Merge-order advice, conflict risks and anything else the human should know"
+    },
+    "units": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "purpose", "branch", "files", "file_count", "depends_on", "ac_indices"],
+        "properties": {
+          "id": { "type": "string", "description": "pr1, pr2, ... in dependency order" },
+          "title": { "type": "string" },
+          "purpose": { "type": "string", "description": "One sentence, at most 25 words" },
+          "branch": { "type": "string", "description": "<TaskSpec.branch>-<id>-<slug>" },
+          "files": { "type": "array", "items": { "type": "string" } },
+          "file_count": { "type": "integer" },
+          "depends_on": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Unit ids that must be merged before this unit starts"
+          },
+          "ac_indices": {
+            "type": "array",
+            "items": { "type": "integer" },
+            "description": "Zero-based indices into TaskSpec.acceptance_criteria this unit completes or advances"
+          },
+          "size_note": {
+            "type": ["string", "null"],
+            "description": "Why the unit exceeds the size guideline, if it does"
+          }
+        }
+      }
+    }
+  }
+}

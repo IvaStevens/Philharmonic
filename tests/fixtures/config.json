@@ -1,0 +1,18 @@
+{
+  "project_name": "Fixture",
+  "pr_target_branch": "main",
+  "source_control": "github",
+  "output_dir": "/fixture/.claude",
+  "ticket_system": "none",
+  "plan_approval": "y",
+  "tester_default": "n",
+  "max_internal_retries": "3",
+  "max_pr_review_cycles": "2",
+  "ci_timeout_minutes": "30",
+  "include_study_guide": "y",
+  "include_rte": "n",
+  "rte_max_files": "20",
+  "scripts": [],
+  "local_tickets_dir": "/fixture/tickets",
+  "projects_root": "/fixture/projects"
+}

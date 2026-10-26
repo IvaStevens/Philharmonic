@@ -1,0 +1,2218 @@
+{
+ "paused_for_plan_approval": {
+  "calls": [
+   {
+    "prompt": "You are the Product Owner agent for Fixture.\n\nRead the ticket \"T-1\" and produce a TaskSpec according to your agent instructions.\n\nTicket ID: T-1",
+    "opts": {
+     "agentType": "product-owner",
+     "schema": {
+      "type": "object",
+      "required": [
+       "ticket_id",
+       "title",
+       "branch",
+       "acceptance_criteria",
+       "out_of_scope",
+       "linked_docs",
+       "dependencies",
+       "domain",
+       "key_files",
+       "authors",
+       "notes"
+      ],
+      "properties": {
+       "ticket_id": {
+        "type": "string"
+       },
+       "title": {
+        "type": "string"
+       },
+       "project": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "branch": {
+        "type": "string"
+       },
+       "acceptance_criteria": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "out_of_scope": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "linked_docs": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "design_url": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "dependencies": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "domain": {
+        "type": "string"
+       },
+       "key_files": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "authors": {
+        "type": "array"
+       },
+       "notes": {
+        "type": "string"
+       },
+       "status": {
+        "type": "string",
+        "enum": [
+         "blocked"
+        ]
+       },
+       "reason": {
+        "type": "string"
+       }
+      }
+     },
+     "phase": "Requirements"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Nag agent for Fixture.\n\nAgent type reviewed: product-owner\nArtifact: TaskSpec\n\nTicket ID: T-1\n\nTaskSpec to review:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}",
+    "opts": {
+     "agentType": "nag",
+     "schema": {
+      "type": "object",
+      "required": [
+       "verdict",
+       "concerns"
+      ],
+      "properties": {
+       "verdict": {
+        "type": "string",
+        "enum": [
+         "pass",
+         "fail"
+        ]
+       },
+       "concerns": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "required": [
+          "concern",
+          "rating"
+         ],
+         "properties": {
+          "concern": {
+           "type": "string"
+          },
+          "rating": {
+           "type": "string",
+           "enum": [
+            "high",
+            "medium",
+            "low"
+           ]
+          }
+         }
+        }
+       }
+      }
+     },
+     "phase": "Requirements"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nCreate git branch \"T-1-add-thing\" from main and push it.\n\nRun:\n  git checkout main && git pull\n  git checkout -b T-1-add-thing\n  git push -u origin T-1-add-thing\n\nIf the directory is missing, is not a git repository, or has no remote, do not create anything — report ok=false with the error.",
+    "opts": {
+     "label": "create-branch",
+     "phase": "Requirements",
+     "schema": {
+      "type": "object",
+      "required": [
+       "ok"
+      ],
+      "properties": {
+       "ok": {
+        "type": "boolean"
+       },
+       "error": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Architect agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nDesignSpec: null (no design tool configured)\n\nRun your configured skills, write the context file, perform your three self-audit passes, then produce the ImplementationPlan.",
+    "opts": {
+     "agentType": "architect",
+     "schema": {
+      "type": "object",
+      "required": [
+       "approach",
+       "files_to_modify",
+       "files_to_create",
+       "patterns_to_follow",
+       "tests_to_update",
+       "risks",
+       "complexity",
+       "audit_summary"
+      ],
+      "properties": {
+       "approach": {
+        "type": "string"
+       },
+       "files_to_modify": {
+        "type": "array"
+       },
+       "files_to_create": {
+        "type": "array"
+       },
+       "patterns_to_follow": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "tests_to_update": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "risks": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "complexity": {
+        "type": "string",
+        "enum": [
+         "low",
+         "medium",
+         "high"
+        ]
+       },
+       "audit_summary": {
+        "type": "object"
+       }
+      }
+     },
+     "phase": "Architecture"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Nag agent for Fixture.\n\nAgent type reviewed: architect\nArtifact: ImplementationPlan\n\nTaskSpec (for context):\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationPlan to review:\n{\n  \"approach\": \"do it\",\n  \"files_to_modify\": [\n    {\n      \"path\": \"a.js\",\n      \"reason\": \"x\"\n    }\n  ],\n  \"files_to_create\": [\n    {\n      \"path\": \"b.js\",\n      \"reason\": \"y\"\n    }\n  ],\n  \"patterns_to_follow\": [],\n  \"tests_to_update\": [],\n  \"risks\": [],\n  \"complexity\": \"low\",\n  \"audit_summary\": {}\n}",
+    "opts": {
+     "agentType": "nag",
+     "schema": {
+      "type": "object",
+      "required": [
+       "verdict",
+       "concerns"
+      ],
+      "properties": {
+       "verdict": {
+        "type": "string",
+        "enum": [
+         "pass",
+         "fail"
+        ]
+       },
+       "concerns": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "required": [
+          "concern",
+          "rating"
+         ],
+         "properties": {
+          "concern": {
+           "type": "string"
+          },
+          "rating": {
+           "type": "string",
+           "enum": [
+            "high",
+            "medium",
+            "low"
+           ]
+          }
+         }
+        }
+       }
+      }
+     },
+     "phase": "Architecture"
+    }
+   }
+  ],
+  "logs": [
+   "Starting dev workflow for ticket: T-1",
+   "Product Owner: validating ticket and producing TaskSpec...",
+   "TaskSpec produced for: Add thing (branch: T-1-add-thing)",
+   "Project scope: /fixture/projects/proj",
+   "Nag: stress-testing TaskSpec...",
+   "Nag: TaskSpec passed.",
+   "Creating branch: T-1-add-thing",
+   "Architect: analysing codebase and producing ImplementationPlan...",
+   "ImplementationPlan produced. Complexity: low",
+   "Nag: stress-testing ImplementationPlan...",
+   "Nag: ImplementationPlan passed.",
+   "*** PAUSED — Human approval required before implementation begins. ***",
+   "Review the ImplementationPlan above, then re-run this workflow to continue."
+  ],
+  "result": {
+   "paused": true,
+   "stage": "plan-approval",
+   "task_spec": {
+    "ticket_id": "T-1",
+    "title": "Add thing",
+    "project": "proj",
+    "branch": "T-1-add-thing",
+    "acceptance_criteria": [
+     "first",
+     "second",
+     "third"
+    ],
+    "out_of_scope": [],
+    "linked_docs": [],
+    "dependencies": [],
+    "domain": "d",
+    "key_files": [],
+    "authors": [],
+    "notes": ""
+   },
+   "design_spec": null,
+   "implementation_plan": {
+    "approach": "do it",
+    "files_to_modify": [
+     {
+      "path": "a.js",
+      "reason": "x"
+     }
+    ],
+    "files_to_create": [
+     {
+      "path": "b.js",
+      "reason": "y"
+     }
+    ],
+    "patterns_to_follow": [],
+    "tests_to_update": [],
+    "risks": [],
+    "complexity": "low",
+    "audit_summary": {}
+   }
+  }
+ },
+ "approved_with_decisions": {
+  "calls": [
+   {
+    "prompt": "You are the Product Owner agent for Fixture.\n\nRead the ticket \"T-1\" and produce a TaskSpec according to your agent instructions.\n\nTicket ID: T-1",
+    "opts": {
+     "agentType": "product-owner",
+     "schema": {
+      "type": "object",
+      "required": [
+       "ticket_id",
+       "title",
+       "branch",
+       "acceptance_criteria",
+       "out_of_scope",
+       "linked_docs",
+       "dependencies",
+       "domain",
+       "key_files",
+       "authors",
+       "notes"
+      ],
+      "properties": {
+       "ticket_id": {
+        "type": "string"
+       },
+       "title": {
+        "type": "string"
+       },
+       "project": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "branch": {
+        "type": "string"
+       },
+       "acceptance_criteria": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "out_of_scope": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "linked_docs": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "design_url": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "dependencies": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "domain": {
+        "type": "string"
+       },
+       "key_files": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "authors": {
+        "type": "array"
+       },
+       "notes": {
+        "type": "string"
+       },
+       "status": {
+        "type": "string",
+        "enum": [
+         "blocked"
+        ]
+       },
+       "reason": {
+        "type": "string"
+       }
+      }
+     },
+     "phase": "Requirements"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Nag agent for Fixture.\n\nAgent type reviewed: product-owner\nArtifact: TaskSpec\n\nTicket ID: T-1\n\nTaskSpec to review:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}",
+    "opts": {
+     "agentType": "nag",
+     "schema": {
+      "type": "object",
+      "required": [
+       "verdict",
+       "concerns"
+      ],
+      "properties": {
+       "verdict": {
+        "type": "string",
+        "enum": [
+         "pass",
+         "fail"
+        ]
+       },
+       "concerns": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "required": [
+          "concern",
+          "rating"
+         ],
+         "properties": {
+          "concern": {
+           "type": "string"
+          },
+          "rating": {
+           "type": "string",
+           "enum": [
+            "high",
+            "medium",
+            "low"
+           ]
+          }
+         }
+        }
+       }
+      }
+     },
+     "phase": "Requirements"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nCreate git branch \"T-1-add-thing\" from main and push it.\n\nRun:\n  git checkout main && git pull\n  git checkout -b T-1-add-thing\n  git push -u origin T-1-add-thing\n\nIf the directory is missing, is not a git repository, or has no remote, do not create anything — report ok=false with the error.",
+    "opts": {
+     "label": "create-branch",
+     "phase": "Requirements",
+     "schema": {
+      "type": "object",
+      "required": [
+       "ok"
+      ],
+      "properties": {
+       "ok": {
+        "type": "boolean"
+       },
+       "error": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Architect agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nDesignSpec: null (no design tool configured)\n\nRun your configured skills, write the context file, perform your three self-audit passes, then produce the ImplementationPlan.",
+    "opts": {
+     "agentType": "architect",
+     "schema": {
+      "type": "object",
+      "required": [
+       "approach",
+       "files_to_modify",
+       "files_to_create",
+       "patterns_to_follow",
+       "tests_to_update",
+       "risks",
+       "complexity",
+       "audit_summary"
+      ],
+      "properties": {
+       "approach": {
+        "type": "string"
+       },
+       "files_to_modify": {
+        "type": "array"
+       },
+       "files_to_create": {
+        "type": "array"
+       },
+       "patterns_to_follow": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "tests_to_update": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "risks": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "complexity": {
+        "type": "string",
+        "enum": [
+         "low",
+         "medium",
+         "high"
+        ]
+       },
+       "audit_summary": {
+        "type": "object"
+       }
+      }
+     },
+     "phase": "Architecture"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Nag agent for Fixture.\n\nAgent type reviewed: architect\nArtifact: ImplementationPlan\n\nTaskSpec (for context):\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationPlan to review:\n{\n  \"approach\": \"do it\",\n  \"files_to_modify\": [\n    {\n      \"path\": \"a.js\",\n      \"reason\": \"x\"\n    }\n  ],\n  \"files_to_create\": [\n    {\n      \"path\": \"b.js\",\n      \"reason\": \"y\"\n    }\n  ],\n  \"patterns_to_follow\": [],\n  \"tests_to_update\": [],\n  \"risks\": [],\n  \"complexity\": \"low\",\n  \"audit_summary\": {}\n}",
+    "opts": {
+     "agentType": "nag",
+     "schema": {
+      "type": "object",
+      "required": [
+       "verdict",
+       "concerns"
+      ],
+      "properties": {
+       "verdict": {
+        "type": "string",
+        "enum": [
+         "pass",
+         "fail"
+        ]
+       },
+       "concerns": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "required": [
+          "concern",
+          "rating"
+         ],
+         "properties": {
+          "concern": {
+           "type": "string"
+          },
+          "rating": {
+           "type": "string",
+           "enum": [
+            "high",
+            "medium",
+            "low"
+           ]
+          }
+         }
+        }
+       }
+      }
+     },
+     "phase": "Architecture"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Developer agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationPlan:\n{\n  \"approach\": \"do it\",\n  \"files_to_modify\": [\n    {\n      \"path\": \"a.js\",\n      \"reason\": \"x\"\n    }\n  ],\n  \"files_to_create\": [\n    {\n      \"path\": \"b.js\",\n      \"reason\": \"y\"\n    }\n  ],\n  \"patterns_to_follow\": [],\n  \"tests_to_update\": [],\n  \"risks\": [],\n  \"complexity\": \"low\",\n  \"audit_summary\": {}\n}\n\n\n\nHuman decisions made at plan approval (these override the plan where they conflict):\nuse X\n\n\nImplement the plan, run tests, and produce an ImplementationResult.",
+    "opts": {
+     "agentType": "implementer",
+     "schema": {
+      "type": "object",
+      "required": [
+       "status",
+       "files_changed",
+       "tests_run",
+       "blockers"
+      ],
+      "properties": {
+       "status": {
+        "type": "string",
+        "enum": [
+         "complete",
+         "blocked"
+        ]
+       },
+       "files_changed": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "tests_run": {
+        "type": "array"
+       },
+       "blockers": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "trigger_review": {
+        "type": "boolean"
+       },
+       "pr_comment_dispositions": {
+        "type": "array"
+       }
+      }
+     },
+     "phase": "Implementation"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Reviewer agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationResult:\n{\n  \"status\": \"complete\",\n  \"files_changed\": [\n    \"x.js\"\n  ],\n  \"tests_run\": []\n}\n\nHuman decisions made at plan approval (these override the TaskSpec acceptance criteria where they conflict; do not flag deviations they authorise):\nuse X\n\nRun your configured review skills and produce a ReviewResult.",
+    "opts": {
+     "agentType": "reviewer",
+     "schema": {
+      "type": "object",
+      "required": [
+       "status",
+       "ac_coverage",
+       "findings",
+       "standard_violations"
+      ],
+      "properties": {
+       "status": {
+        "type": "string",
+        "enum": [
+         "approved",
+         "changes_requested"
+        ]
+       },
+       "ac_coverage": {
+        "type": "array"
+       },
+       "findings": {
+        "type": "array"
+       },
+       "standard_violations": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "phase": "Review"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Study Guide agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationPlan:\n{\n  \"approach\": \"do it\",\n  \"files_to_modify\": [\n    {\n      \"path\": \"a.js\",\n      \"reason\": \"x\"\n    }\n  ],\n  \"files_to_create\": [\n    {\n      \"path\": \"b.js\",\n      \"reason\": \"y\"\n    }\n  ],\n  \"patterns_to_follow\": [],\n  \"tests_to_update\": [],\n  \"risks\": [],\n  \"complexity\": \"low\",\n  \"audit_summary\": {}\n}\n\nImplementationResult:\n{\n  \"status\": \"complete\",\n  \"files_changed\": [\n    \"x.js\"\n  ],\n  \"tests_run\": []\n}\n\nReview the Architect's plan and the Developer's implementation. Surface intermediate-to-advanced patterns as study entries and write the context file.",
+    "opts": {
+     "agentType": "study-guide",
+     "label": "study-guide",
+     "phase": "Review"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the DevOps agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationResult:\n{\n  \"status\": \"complete\",\n  \"files_changed\": [\n    \"x.js\"\n  ],\n  \"tests_run\": []\n}\n\nReviewResult:\n{\n  \"status\": \"approved\"\n}\n\n\n\nCreate the PR, then monitor CI and human review comments. Produce a DeployStatus.",
+    "opts": {
+     "agentType": "devops",
+     "schema": {
+      "type": "object",
+      "required": [
+       "status",
+       "pr_url",
+       "ci_status",
+       "ci_failures",
+       "review_comments",
+       "notes"
+      ],
+      "properties": {
+       "status": {
+        "type": "string",
+        "enum": [
+         "ready",
+         "ci_failing",
+         "changes_requested",
+         "blocked"
+        ]
+       },
+       "pr_url": {
+        "type": "string"
+       },
+       "ci_status": {
+        "type": "string",
+        "enum": [
+         "passing",
+         "failing",
+         "pending"
+        ]
+       },
+       "ci_failures": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "review_comments": {
+        "type": "array"
+       },
+       "notes": {
+        "type": "string"
+       }
+      }
+     },
+     "phase": "Deploy"
+    }
+   }
+  ],
+  "logs": [
+   "Starting dev workflow for ticket: T-1",
+   "Product Owner: validating ticket and producing TaskSpec...",
+   "TaskSpec produced for: Add thing (branch: T-1-add-thing)",
+   "Project scope: /fixture/projects/proj",
+   "Nag: stress-testing TaskSpec...",
+   "Nag: TaskSpec passed.",
+   "Creating branch: T-1-add-thing",
+   "Architect: analysing codebase and producing ImplementationPlan...",
+   "ImplementationPlan produced. Complexity: low",
+   "Nag: stress-testing ImplementationPlan...",
+   "Nag: ImplementationPlan passed.",
+   "Developer: implementing (attempt 1/3)...",
+   "Reviewer: verifying implementation...",
+   "Reviewer approved the implementation.",
+   "DevOps: creating PR and monitoring CI...",
+   "Study Guide running in parallel with PR creation...",
+   "SUCCESS — PR is ready: https://pr/1",
+   "CI is green. Awaiting human merge. Workflow complete."
+  ],
+  "result": {
+   "ticket_id": "T-1",
+   "pr_url": "https://pr/1",
+   "status": "ready",
+   "message": "Workflow complete. Human merge required."
+  }
+ },
+ "review_requests_changes_once": {
+  "calls": [
+   {
+    "prompt": "You are the Product Owner agent for Fixture.\n\nRead the ticket \"T-1\" and produce a TaskSpec according to your agent instructions.\n\nTicket ID: T-1",
+    "opts": {
+     "agentType": "product-owner",
+     "schema": {
+      "type": "object",
+      "required": [
+       "ticket_id",
+       "title",
+       "branch",
+       "acceptance_criteria",
+       "out_of_scope",
+       "linked_docs",
+       "dependencies",
+       "domain",
+       "key_files",
+       "authors",
+       "notes"
+      ],
+      "properties": {
+       "ticket_id": {
+        "type": "string"
+       },
+       "title": {
+        "type": "string"
+       },
+       "project": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "branch": {
+        "type": "string"
+       },
+       "acceptance_criteria": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "out_of_scope": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "linked_docs": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "design_url": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "dependencies": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "domain": {
+        "type": "string"
+       },
+       "key_files": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "authors": {
+        "type": "array"
+       },
+       "notes": {
+        "type": "string"
+       },
+       "status": {
+        "type": "string",
+        "enum": [
+         "blocked"
+        ]
+       },
+       "reason": {
+        "type": "string"
+       }
+      }
+     },
+     "phase": "Requirements"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Nag agent for Fixture.\n\nAgent type reviewed: product-owner\nArtifact: TaskSpec\n\nTicket ID: T-1\n\nTaskSpec to review:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}",
+    "opts": {
+     "agentType": "nag",
+     "schema": {
+      "type": "object",
+      "required": [
+       "verdict",
+       "concerns"
+      ],
+      "properties": {
+       "verdict": {
+        "type": "string",
+        "enum": [
+         "pass",
+         "fail"
+        ]
+       },
+       "concerns": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "required": [
+          "concern",
+          "rating"
+         ],
+         "properties": {
+          "concern": {
+           "type": "string"
+          },
+          "rating": {
+           "type": "string",
+           "enum": [
+            "high",
+            "medium",
+            "low"
+           ]
+          }
+         }
+        }
+       }
+      }
+     },
+     "phase": "Requirements"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nCreate git branch \"T-1-add-thing\" from main and push it.\n\nRun:\n  git checkout main && git pull\n  git checkout -b T-1-add-thing\n  git push -u origin T-1-add-thing\n\nIf the directory is missing, is not a git repository, or has no remote, do not create anything — report ok=false with the error.",
+    "opts": {
+     "label": "create-branch",
+     "phase": "Requirements",
+     "schema": {
+      "type": "object",
+      "required": [
+       "ok"
+      ],
+      "properties": {
+       "ok": {
+        "type": "boolean"
+       },
+       "error": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Architect agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nDesignSpec: null (no design tool configured)\n\nRun your configured skills, write the context file, perform your three self-audit passes, then produce the ImplementationPlan.",
+    "opts": {
+     "agentType": "architect",
+     "schema": {
+      "type": "object",
+      "required": [
+       "approach",
+       "files_to_modify",
+       "files_to_create",
+       "patterns_to_follow",
+       "tests_to_update",
+       "risks",
+       "complexity",
+       "audit_summary"
+      ],
+      "properties": {
+       "approach": {
+        "type": "string"
+       },
+       "files_to_modify": {
+        "type": "array"
+       },
+       "files_to_create": {
+        "type": "array"
+       },
+       "patterns_to_follow": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "tests_to_update": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "risks": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "complexity": {
+        "type": "string",
+        "enum": [
+         "low",
+         "medium",
+         "high"
+        ]
+       },
+       "audit_summary": {
+        "type": "object"
+       }
+      }
+     },
+     "phase": "Architecture"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Nag agent for Fixture.\n\nAgent type reviewed: architect\nArtifact: ImplementationPlan\n\nTaskSpec (for context):\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationPlan to review:\n{\n  \"approach\": \"do it\",\n  \"files_to_modify\": [\n    {\n      \"path\": \"a.js\",\n      \"reason\": \"x\"\n    }\n  ],\n  \"files_to_create\": [\n    {\n      \"path\": \"b.js\",\n      \"reason\": \"y\"\n    }\n  ],\n  \"patterns_to_follow\": [],\n  \"tests_to_update\": [],\n  \"risks\": [],\n  \"complexity\": \"low\",\n  \"audit_summary\": {}\n}",
+    "opts": {
+     "agentType": "nag",
+     "schema": {
+      "type": "object",
+      "required": [
+       "verdict",
+       "concerns"
+      ],
+      "properties": {
+       "verdict": {
+        "type": "string",
+        "enum": [
+         "pass",
+         "fail"
+        ]
+       },
+       "concerns": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "required": [
+          "concern",
+          "rating"
+         ],
+         "properties": {
+          "concern": {
+           "type": "string"
+          },
+          "rating": {
+           "type": "string",
+           "enum": [
+            "high",
+            "medium",
+            "low"
+           ]
+          }
+         }
+        }
+       }
+      }
+     },
+     "phase": "Architecture"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Developer agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationPlan:\n{\n  \"approach\": \"do it\",\n  \"files_to_modify\": [\n    {\n      \"path\": \"a.js\",\n      \"reason\": \"x\"\n    }\n  ],\n  \"files_to_create\": [\n    {\n      \"path\": \"b.js\",\n      \"reason\": \"y\"\n    }\n  ],\n  \"patterns_to_follow\": [],\n  \"tests_to_update\": [],\n  \"risks\": [],\n  \"complexity\": \"low\",\n  \"audit_summary\": {}\n}\n\n\n\n\n\nImplement the plan, run tests, and produce an ImplementationResult.",
+    "opts": {
+     "agentType": "implementer",
+     "schema": {
+      "type": "object",
+      "required": [
+       "status",
+       "files_changed",
+       "tests_run",
+       "blockers"
+      ],
+      "properties": {
+       "status": {
+        "type": "string",
+        "enum": [
+         "complete",
+         "blocked"
+        ]
+       },
+       "files_changed": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "tests_run": {
+        "type": "array"
+       },
+       "blockers": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "trigger_review": {
+        "type": "boolean"
+       },
+       "pr_comment_dispositions": {
+        "type": "array"
+       }
+      }
+     },
+     "phase": "Implementation"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Reviewer agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationResult:\n{\n  \"status\": \"complete\",\n  \"files_changed\": [\n    \"x.js\"\n  ],\n  \"tests_run\": []\n}\n\n\nRun your configured review skills and produce a ReviewResult.",
+    "opts": {
+     "agentType": "reviewer",
+     "schema": {
+      "type": "object",
+      "required": [
+       "status",
+       "ac_coverage",
+       "findings",
+       "standard_violations"
+      ],
+      "properties": {
+       "status": {
+        "type": "string",
+        "enum": [
+         "approved",
+         "changes_requested"
+        ]
+       },
+       "ac_coverage": {
+        "type": "array"
+       },
+       "findings": {
+        "type": "array"
+       },
+       "standard_violations": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "phase": "Review"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Developer agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationPlan:\n{\n  \"approach\": \"do it\",\n  \"files_to_modify\": [\n    {\n      \"path\": \"a.js\",\n      \"reason\": \"x\"\n    }\n  ],\n  \"files_to_create\": [\n    {\n      \"path\": \"b.js\",\n      \"reason\": \"y\"\n    }\n  ],\n  \"patterns_to_follow\": [],\n  \"tests_to_update\": [],\n  \"risks\": [],\n  \"complexity\": \"low\",\n  \"audit_summary\": {}\n}\n\n\n\n\nPrevious ReviewResult (address these findings):\n{\n  \"status\": \"changes_requested\",\n  \"findings\": [\n    \"fix\"\n  ]\n}\n\nImplement the plan, run tests, and produce an ImplementationResult.",
+    "opts": {
+     "agentType": "implementer",
+     "schema": {
+      "type": "object",
+      "required": [
+       "status",
+       "files_changed",
+       "tests_run",
+       "blockers"
+      ],
+      "properties": {
+       "status": {
+        "type": "string",
+        "enum": [
+         "complete",
+         "blocked"
+        ]
+       },
+       "files_changed": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "tests_run": {
+        "type": "array"
+       },
+       "blockers": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "trigger_review": {
+        "type": "boolean"
+       },
+       "pr_comment_dispositions": {
+        "type": "array"
+       }
+      }
+     },
+     "phase": "Implementation"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Reviewer agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationResult:\n{\n  \"status\": \"complete\",\n  \"files_changed\": [\n    \"x.js\"\n  ],\n  \"tests_run\": []\n}\n\n\nRun your configured review skills and produce a ReviewResult.",
+    "opts": {
+     "agentType": "reviewer",
+     "schema": {
+      "type": "object",
+      "required": [
+       "status",
+       "ac_coverage",
+       "findings",
+       "standard_violations"
+      ],
+      "properties": {
+       "status": {
+        "type": "string",
+        "enum": [
+         "approved",
+         "changes_requested"
+        ]
+       },
+       "ac_coverage": {
+        "type": "array"
+       },
+       "findings": {
+        "type": "array"
+       },
+       "standard_violations": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "phase": "Review"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Study Guide agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationPlan:\n{\n  \"approach\": \"do it\",\n  \"files_to_modify\": [\n    {\n      \"path\": \"a.js\",\n      \"reason\": \"x\"\n    }\n  ],\n  \"files_to_create\": [\n    {\n      \"path\": \"b.js\",\n      \"reason\": \"y\"\n    }\n  ],\n  \"patterns_to_follow\": [],\n  \"tests_to_update\": [],\n  \"risks\": [],\n  \"complexity\": \"low\",\n  \"audit_summary\": {}\n}\n\nImplementationResult:\n{\n  \"status\": \"complete\",\n  \"files_changed\": [\n    \"x.js\"\n  ],\n  \"tests_run\": []\n}\n\nReview the Architect's plan and the Developer's implementation. Surface intermediate-to-advanced patterns as study entries and write the context file.",
+    "opts": {
+     "agentType": "study-guide",
+     "label": "study-guide",
+     "phase": "Review"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the DevOps agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationResult:\n{\n  \"status\": \"complete\",\n  \"files_changed\": [\n    \"x.js\"\n  ],\n  \"tests_run\": []\n}\n\nReviewResult:\n{\n  \"status\": \"approved\"\n}\n\n\n\nCreate the PR, then monitor CI and human review comments. Produce a DeployStatus.",
+    "opts": {
+     "agentType": "devops",
+     "schema": {
+      "type": "object",
+      "required": [
+       "status",
+       "pr_url",
+       "ci_status",
+       "ci_failures",
+       "review_comments",
+       "notes"
+      ],
+      "properties": {
+       "status": {
+        "type": "string",
+        "enum": [
+         "ready",
+         "ci_failing",
+         "changes_requested",
+         "blocked"
+        ]
+       },
+       "pr_url": {
+        "type": "string"
+       },
+       "ci_status": {
+        "type": "string",
+        "enum": [
+         "passing",
+         "failing",
+         "pending"
+        ]
+       },
+       "ci_failures": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "review_comments": {
+        "type": "array"
+       },
+       "notes": {
+        "type": "string"
+       }
+      }
+     },
+     "phase": "Deploy"
+    }
+   }
+  ],
+  "logs": [
+   "Starting dev workflow for ticket: T-1",
+   "Product Owner: validating ticket and producing TaskSpec...",
+   "TaskSpec produced for: Add thing (branch: T-1-add-thing)",
+   "Project scope: /fixture/projects/proj",
+   "Nag: stress-testing TaskSpec...",
+   "Nag: TaskSpec passed.",
+   "Creating branch: T-1-add-thing",
+   "Architect: analysing codebase and producing ImplementationPlan...",
+   "ImplementationPlan produced. Complexity: low",
+   "Nag: stress-testing ImplementationPlan...",
+   "Nag: ImplementationPlan passed.",
+   "Developer: implementing (attempt 1/3)...",
+   "Reviewer: verifying implementation...",
+   "Reviewer requested changes (attempt 1/3).",
+   "Developer: implementing (attempt 2/3)...",
+   "Reviewer: verifying implementation...",
+   "Reviewer approved the implementation.",
+   "DevOps: creating PR and monitoring CI...",
+   "Study Guide running in parallel with PR creation...",
+   "SUCCESS — PR is ready: https://pr/1",
+   "CI is green. Awaiting human merge. Workflow complete."
+  ],
+  "result": {
+   "ticket_id": "T-1",
+   "pr_url": "https://pr/1",
+   "status": "ready",
+   "message": "Workflow complete. Human merge required."
+  }
+ },
+ "human_pr_review_cycle": {
+  "calls": [
+   {
+    "prompt": "You are the Product Owner agent for Fixture.\n\nRead the ticket \"T-1\" and produce a TaskSpec according to your agent instructions.\n\nTicket ID: T-1",
+    "opts": {
+     "agentType": "product-owner",
+     "schema": {
+      "type": "object",
+      "required": [
+       "ticket_id",
+       "title",
+       "branch",
+       "acceptance_criteria",
+       "out_of_scope",
+       "linked_docs",
+       "dependencies",
+       "domain",
+       "key_files",
+       "authors",
+       "notes"
+      ],
+      "properties": {
+       "ticket_id": {
+        "type": "string"
+       },
+       "title": {
+        "type": "string"
+       },
+       "project": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "branch": {
+        "type": "string"
+       },
+       "acceptance_criteria": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "out_of_scope": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "linked_docs": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "design_url": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "dependencies": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "domain": {
+        "type": "string"
+       },
+       "key_files": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "authors": {
+        "type": "array"
+       },
+       "notes": {
+        "type": "string"
+       },
+       "status": {
+        "type": "string",
+        "enum": [
+         "blocked"
+        ]
+       },
+       "reason": {
+        "type": "string"
+       }
+      }
+     },
+     "phase": "Requirements"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Nag agent for Fixture.\n\nAgent type reviewed: product-owner\nArtifact: TaskSpec\n\nTicket ID: T-1\n\nTaskSpec to review:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}",
+    "opts": {
+     "agentType": "nag",
+     "schema": {
+      "type": "object",
+      "required": [
+       "verdict",
+       "concerns"
+      ],
+      "properties": {
+       "verdict": {
+        "type": "string",
+        "enum": [
+         "pass",
+         "fail"
+        ]
+       },
+       "concerns": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "required": [
+          "concern",
+          "rating"
+         ],
+         "properties": {
+          "concern": {
+           "type": "string"
+          },
+          "rating": {
+           "type": "string",
+           "enum": [
+            "high",
+            "medium",
+            "low"
+           ]
+          }
+         }
+        }
+       }
+      }
+     },
+     "phase": "Requirements"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nCreate git branch \"T-1-add-thing\" from main and push it.\n\nRun:\n  git checkout main && git pull\n  git checkout -b T-1-add-thing\n  git push -u origin T-1-add-thing\n\nIf the directory is missing, is not a git repository, or has no remote, do not create anything — report ok=false with the error.",
+    "opts": {
+     "label": "create-branch",
+     "phase": "Requirements",
+     "schema": {
+      "type": "object",
+      "required": [
+       "ok"
+      ],
+      "properties": {
+       "ok": {
+        "type": "boolean"
+       },
+       "error": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Architect agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nDesignSpec: null (no design tool configured)\n\nRun your configured skills, write the context file, perform your three self-audit passes, then produce the ImplementationPlan.",
+    "opts": {
+     "agentType": "architect",
+     "schema": {
+      "type": "object",
+      "required": [
+       "approach",
+       "files_to_modify",
+       "files_to_create",
+       "patterns_to_follow",
+       "tests_to_update",
+       "risks",
+       "complexity",
+       "audit_summary"
+      ],
+      "properties": {
+       "approach": {
+        "type": "string"
+       },
+       "files_to_modify": {
+        "type": "array"
+       },
+       "files_to_create": {
+        "type": "array"
+       },
+       "patterns_to_follow": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "tests_to_update": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "risks": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "complexity": {
+        "type": "string",
+        "enum": [
+         "low",
+         "medium",
+         "high"
+        ]
+       },
+       "audit_summary": {
+        "type": "object"
+       }
+      }
+     },
+     "phase": "Architecture"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Nag agent for Fixture.\n\nAgent type reviewed: architect\nArtifact: ImplementationPlan\n\nTaskSpec (for context):\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationPlan to review:\n{\n  \"approach\": \"do it\",\n  \"files_to_modify\": [\n    {\n      \"path\": \"a.js\",\n      \"reason\": \"x\"\n    }\n  ],\n  \"files_to_create\": [\n    {\n      \"path\": \"b.js\",\n      \"reason\": \"y\"\n    }\n  ],\n  \"patterns_to_follow\": [],\n  \"tests_to_update\": [],\n  \"risks\": [],\n  \"complexity\": \"low\",\n  \"audit_summary\": {}\n}",
+    "opts": {
+     "agentType": "nag",
+     "schema": {
+      "type": "object",
+      "required": [
+       "verdict",
+       "concerns"
+      ],
+      "properties": {
+       "verdict": {
+        "type": "string",
+        "enum": [
+         "pass",
+         "fail"
+        ]
+       },
+       "concerns": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "required": [
+          "concern",
+          "rating"
+         ],
+         "properties": {
+          "concern": {
+           "type": "string"
+          },
+          "rating": {
+           "type": "string",
+           "enum": [
+            "high",
+            "medium",
+            "low"
+           ]
+          }
+         }
+        }
+       }
+      }
+     },
+     "phase": "Architecture"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Developer agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationPlan:\n{\n  \"approach\": \"do it\",\n  \"files_to_modify\": [\n    {\n      \"path\": \"a.js\",\n      \"reason\": \"x\"\n    }\n  ],\n  \"files_to_create\": [\n    {\n      \"path\": \"b.js\",\n      \"reason\": \"y\"\n    }\n  ],\n  \"patterns_to_follow\": [],\n  \"tests_to_update\": [],\n  \"risks\": [],\n  \"complexity\": \"low\",\n  \"audit_summary\": {}\n}\n\n\n\n\n\nImplement the plan, run tests, and produce an ImplementationResult.",
+    "opts": {
+     "agentType": "implementer",
+     "schema": {
+      "type": "object",
+      "required": [
+       "status",
+       "files_changed",
+       "tests_run",
+       "blockers"
+      ],
+      "properties": {
+       "status": {
+        "type": "string",
+        "enum": [
+         "complete",
+         "blocked"
+        ]
+       },
+       "files_changed": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "tests_run": {
+        "type": "array"
+       },
+       "blockers": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "trigger_review": {
+        "type": "boolean"
+       },
+       "pr_comment_dispositions": {
+        "type": "array"
+       }
+      }
+     },
+     "phase": "Implementation"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Reviewer agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationResult:\n{\n  \"status\": \"complete\",\n  \"files_changed\": [\n    \"x.js\"\n  ],\n  \"tests_run\": []\n}\n\n\nRun your configured review skills and produce a ReviewResult.",
+    "opts": {
+     "agentType": "reviewer",
+     "schema": {
+      "type": "object",
+      "required": [
+       "status",
+       "ac_coverage",
+       "findings",
+       "standard_violations"
+      ],
+      "properties": {
+       "status": {
+        "type": "string",
+        "enum": [
+         "approved",
+         "changes_requested"
+        ]
+       },
+       "ac_coverage": {
+        "type": "array"
+       },
+       "findings": {
+        "type": "array"
+       },
+       "standard_violations": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "phase": "Review"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Study Guide agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationPlan:\n{\n  \"approach\": \"do it\",\n  \"files_to_modify\": [\n    {\n      \"path\": \"a.js\",\n      \"reason\": \"x\"\n    }\n  ],\n  \"files_to_create\": [\n    {\n      \"path\": \"b.js\",\n      \"reason\": \"y\"\n    }\n  ],\n  \"patterns_to_follow\": [],\n  \"tests_to_update\": [],\n  \"risks\": [],\n  \"complexity\": \"low\",\n  \"audit_summary\": {}\n}\n\nImplementationResult:\n{\n  \"status\": \"complete\",\n  \"files_changed\": [\n    \"x.js\"\n  ],\n  \"tests_run\": []\n}\n\nReview the Architect's plan and the Developer's implementation. Surface intermediate-to-advanced patterns as study entries and write the context file.",
+    "opts": {
+     "agentType": "study-guide",
+     "label": "study-guide",
+     "phase": "Review"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the DevOps agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationResult:\n{\n  \"status\": \"complete\",\n  \"files_changed\": [\n    \"x.js\"\n  ],\n  \"tests_run\": []\n}\n\nReviewResult:\n{\n  \"status\": \"approved\"\n}\n\n\n\nCreate the PR, then monitor CI and human review comments. Produce a DeployStatus.",
+    "opts": {
+     "agentType": "devops",
+     "schema": {
+      "type": "object",
+      "required": [
+       "status",
+       "pr_url",
+       "ci_status",
+       "ci_failures",
+       "review_comments",
+       "notes"
+      ],
+      "properties": {
+       "status": {
+        "type": "string",
+        "enum": [
+         "ready",
+         "ci_failing",
+         "changes_requested",
+         "blocked"
+        ]
+       },
+       "pr_url": {
+        "type": "string"
+       },
+       "ci_status": {
+        "type": "string",
+        "enum": [
+         "passing",
+         "failing",
+         "pending"
+        ]
+       },
+       "ci_failures": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "review_comments": {
+        "type": "array"
+       },
+       "notes": {
+        "type": "string"
+       }
+      }
+     },
+     "phase": "Deploy"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Developer agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationPlan:\n{\n  \"approach\": \"do it\",\n  \"files_to_modify\": [\n    {\n      \"path\": \"a.js\",\n      \"reason\": \"x\"\n    }\n  ],\n  \"files_to_create\": [\n    {\n      \"path\": \"b.js\",\n      \"reason\": \"y\"\n    }\n  ],\n  \"patterns_to_follow\": [],\n  \"tests_to_update\": [],\n  \"risks\": [],\n  \"complexity\": \"low\",\n  \"audit_summary\": {}\n}\n\nYou received human PR review comments. Evaluate each one and produce an ImplementationResult.\n\nReview comments:\n[\n  {\n    \"id\": \"c1\",\n    \"body\": \"rename\"\n  }\n]",
+    "opts": {
+     "agentType": "implementer",
+     "schema": {
+      "type": "object",
+      "required": [
+       "status",
+       "files_changed",
+       "tests_run",
+       "blockers"
+      ],
+      "properties": {
+       "status": {
+        "type": "string",
+        "enum": [
+         "complete",
+         "blocked"
+        ]
+       },
+       "files_changed": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "tests_run": {
+        "type": "array"
+       },
+       "blockers": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "trigger_review": {
+        "type": "boolean"
+       },
+       "pr_comment_dispositions": {
+        "type": "array"
+       }
+      }
+     },
+     "phase": "Implementation"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the DevOps agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nThe PR already exists. Poll for new CI status and human review comments. Produce a DeployStatus.\nPR URL from previous status: https://pr/1",
+    "opts": {
+     "agentType": "devops",
+     "schema": {
+      "type": "object",
+      "required": [
+       "status",
+       "pr_url",
+       "ci_status",
+       "ci_failures",
+       "review_comments",
+       "notes"
+      ],
+      "properties": {
+       "status": {
+        "type": "string",
+        "enum": [
+         "ready",
+         "ci_failing",
+         "changes_requested",
+         "blocked"
+        ]
+       },
+       "pr_url": {
+        "type": "string"
+       },
+       "ci_status": {
+        "type": "string",
+        "enum": [
+         "passing",
+         "failing",
+         "pending"
+        ]
+       },
+       "ci_failures": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "review_comments": {
+        "type": "array"
+       },
+       "notes": {
+        "type": "string"
+       }
+      }
+     },
+     "phase": "Deploy"
+    }
+   }
+  ],
+  "logs": [
+   "Starting dev workflow for ticket: T-1",
+   "Product Owner: validating ticket and producing TaskSpec...",
+   "TaskSpec produced for: Add thing (branch: T-1-add-thing)",
+   "Project scope: /fixture/projects/proj",
+   "Nag: stress-testing TaskSpec...",
+   "Nag: TaskSpec passed.",
+   "Creating branch: T-1-add-thing",
+   "Architect: analysing codebase and producing ImplementationPlan...",
+   "ImplementationPlan produced. Complexity: low",
+   "Nag: stress-testing ImplementationPlan...",
+   "Nag: ImplementationPlan passed.",
+   "Developer: implementing (attempt 1/3)...",
+   "Reviewer: verifying implementation...",
+   "Reviewer approved the implementation.",
+   "DevOps: creating PR and monitoring CI...",
+   "Study Guide running in parallel with PR creation...",
+   "PR review cycle 1/2: Developer evaluating comments...",
+   "SUCCESS — PR is ready: https://pr/1",
+   "CI is green. Awaiting human merge. Workflow complete."
+  ],
+  "result": {
+   "ticket_id": "T-1",
+   "pr_url": "https://pr/1",
+   "status": "ready",
+   "message": "Workflow complete. Human merge required."
+  }
+ },
+ "local_only": {
+  "calls": [
+   {
+    "prompt": "You are the Product Owner agent for Fixture.\n\nRead the ticket \"T-1\" and produce a TaskSpec according to your agent instructions.\n\nTicket ID: T-1",
+    "opts": {
+     "agentType": "product-owner",
+     "schema": {
+      "type": "object",
+      "required": [
+       "ticket_id",
+       "title",
+       "branch",
+       "acceptance_criteria",
+       "out_of_scope",
+       "linked_docs",
+       "dependencies",
+       "domain",
+       "key_files",
+       "authors",
+       "notes"
+      ],
+      "properties": {
+       "ticket_id": {
+        "type": "string"
+       },
+       "title": {
+        "type": "string"
+       },
+       "project": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "branch": {
+        "type": "string"
+       },
+       "acceptance_criteria": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "out_of_scope": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "linked_docs": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "design_url": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "dependencies": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "domain": {
+        "type": "string"
+       },
+       "key_files": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "authors": {
+        "type": "array"
+       },
+       "notes": {
+        "type": "string"
+       },
+       "status": {
+        "type": "string",
+        "enum": [
+         "blocked"
+        ]
+       },
+       "reason": {
+        "type": "string"
+       }
+      }
+     },
+     "phase": "Requirements"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Nag agent for Fixture.\n\nAgent type reviewed: product-owner\nArtifact: TaskSpec\n\nTicket ID: T-1\n\nTaskSpec to review:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}",
+    "opts": {
+     "agentType": "nag",
+     "schema": {
+      "type": "object",
+      "required": [
+       "verdict",
+       "concerns"
+      ],
+      "properties": {
+       "verdict": {
+        "type": "string",
+        "enum": [
+         "pass",
+         "fail"
+        ]
+       },
+       "concerns": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "required": [
+          "concern",
+          "rating"
+         ],
+         "properties": {
+          "concern": {
+           "type": "string"
+          },
+          "rating": {
+           "type": "string",
+           "enum": [
+            "high",
+            "medium",
+            "low"
+           ]
+          }
+         }
+        }
+       }
+      }
+     },
+     "phase": "Requirements"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nCreate git branch \"T-1-add-thing\" from main. This repository is local-only (no remote) — do NOT pull or push.\n\nRun:\n  git checkout main\n  git checkout -b T-1-add-thing\n\nIf the directory is missing or is not a git repository, do not create anything — report ok=false with the error.",
+    "opts": {
+     "label": "create-branch",
+     "phase": "Requirements",
+     "schema": {
+      "type": "object",
+      "required": [
+       "ok"
+      ],
+      "properties": {
+       "ok": {
+        "type": "boolean"
+       },
+       "error": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Architect agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nDesignSpec: null (no design tool configured)\n\nRun your configured skills, write the context file, perform your three self-audit passes, then produce the ImplementationPlan.",
+    "opts": {
+     "agentType": "architect",
+     "schema": {
+      "type": "object",
+      "required": [
+       "approach",
+       "files_to_modify",
+       "files_to_create",
+       "patterns_to_follow",
+       "tests_to_update",
+       "risks",
+       "complexity",
+       "audit_summary"
+      ],
+      "properties": {
+       "approach": {
+        "type": "string"
+       },
+       "files_to_modify": {
+        "type": "array"
+       },
+       "files_to_create": {
+        "type": "array"
+       },
+       "patterns_to_follow": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "tests_to_update": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "risks": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "complexity": {
+        "type": "string",
+        "enum": [
+         "low",
+         "medium",
+         "high"
+        ]
+       },
+       "audit_summary": {
+        "type": "object"
+       }
+      }
+     },
+     "phase": "Architecture"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Nag agent for Fixture.\n\nAgent type reviewed: architect\nArtifact: ImplementationPlan\n\nTaskSpec (for context):\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationPlan to review:\n{\n  \"approach\": \"do it\",\n  \"files_to_modify\": [\n    {\n      \"path\": \"a.js\",\n      \"reason\": \"x\"\n    }\n  ],\n  \"files_to_create\": [\n    {\n      \"path\": \"b.js\",\n      \"reason\": \"y\"\n    }\n  ],\n  \"patterns_to_follow\": [],\n  \"tests_to_update\": [],\n  \"risks\": [],\n  \"complexity\": \"low\",\n  \"audit_summary\": {}\n}",
+    "opts": {
+     "agentType": "nag",
+     "schema": {
+      "type": "object",
+      "required": [
+       "verdict",
+       "concerns"
+      ],
+      "properties": {
+       "verdict": {
+        "type": "string",
+        "enum": [
+         "pass",
+         "fail"
+        ]
+       },
+       "concerns": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "required": [
+          "concern",
+          "rating"
+         ],
+         "properties": {
+          "concern": {
+           "type": "string"
+          },
+          "rating": {
+           "type": "string",
+           "enum": [
+            "high",
+            "medium",
+            "low"
+           ]
+          }
+         }
+        }
+       }
+      }
+     },
+     "phase": "Architecture"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Developer agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationPlan:\n{\n  \"approach\": \"do it\",\n  \"files_to_modify\": [\n    {\n      \"path\": \"a.js\",\n      \"reason\": \"x\"\n    }\n  ],\n  \"files_to_create\": [\n    {\n      \"path\": \"b.js\",\n      \"reason\": \"y\"\n    }\n  ],\n  \"patterns_to_follow\": [],\n  \"tests_to_update\": [],\n  \"risks\": [],\n  \"complexity\": \"low\",\n  \"audit_summary\": {}\n}\n\n\n\n\n\nImplement the plan, run tests, and produce an ImplementationResult.",
+    "opts": {
+     "agentType": "implementer",
+     "schema": {
+      "type": "object",
+      "required": [
+       "status",
+       "files_changed",
+       "tests_run",
+       "blockers"
+      ],
+      "properties": {
+       "status": {
+        "type": "string",
+        "enum": [
+         "complete",
+         "blocked"
+        ]
+       },
+       "files_changed": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "tests_run": {
+        "type": "array"
+       },
+       "blockers": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "trigger_review": {
+        "type": "boolean"
+       },
+       "pr_comment_dispositions": {
+        "type": "array"
+       }
+      }
+     },
+     "phase": "Implementation"
+    }
+   },
+   {
+    "prompt": "PROJECT SCOPE: this ticket belongs to the project \"proj\". Its directory is /fixture/projects/proj.\nBefore doing anything else, cd into /fixture/projects/proj. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in /fixture/projects/.claude or /fixture/projects/tickets.\n\nYou are the Reviewer agent for Fixture.\n\nTaskSpec:\n{\n  \"ticket_id\": \"T-1\",\n  \"title\": \"Add thing\",\n  \"project\": \"proj\",\n  \"branch\": \"T-1-add-thing\",\n  \"acceptance_criteria\": [\n    \"first\",\n    \"second\",\n    \"third\"\n  ],\n  \"out_of_scope\": [],\n  \"linked_docs\": [],\n  \"dependencies\": [],\n  \"domain\": \"d\",\n  \"key_files\": [],\n  \"authors\": [],\n  \"notes\": \"\"\n}\n\nImplementationResult:\n{\n  \"status\": \"complete\",\n  \"files_changed\": [\n    \"x.js\"\n  ],\n  \"tests_run\": []\n}\n\n\nRun your configured review skills and produce a ReviewResult.",
+    "opts": {
+     "agentType": "reviewer",
+     "schema": {
+      "type": "object",
+      "required": [
+       "status",
+       "ac_coverage",
+       "findings",
+       "standard_violations"
+      ],
+      "properties": {
+       "status": {
+        "type": "string",
+        "enum": [
+         "approved",
+         "changes_requested"
+        ]
+       },
+       "ac_coverage": {
+        "type": "array"
+       },
+       "findings": {
+        "type": "array"
+       },
+       "standard_violations": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "phase": "Review"
+    }
+   }
+  ],
+  "logs": [
+   "Starting dev workflow for ticket: T-1",
+   "Product Owner: validating ticket and producing TaskSpec...",
+   "TaskSpec produced for: Add thing (branch: T-1-add-thing)",
+   "Project scope: /fixture/projects/proj",
+   "Nag: stress-testing TaskSpec...",
+   "Nag: TaskSpec passed.",
+   "Creating branch: T-1-add-thing",
+   "Architect: analysing codebase and producing ImplementationPlan...",
+   "ImplementationPlan produced. Complexity: low",
+   "Nag: stress-testing ImplementationPlan...",
+   "Nag: ImplementationPlan passed.",
+   "Developer: implementing (attempt 1/3)...",
+   "Reviewer: verifying implementation...",
+   "Reviewer approved the implementation.",
+   "SUCCESS (local-only) — branch T-1-add-thing is implemented and reviewed. No PR created. Human merge required."
+  ],
+  "result": {
+   "ticket_id": "T-1",
+   "branch": "T-1-add-thing",
+   "status": "local_ready",
+   "files_changed": [
+    "x.js"
+   ],
+   "review_status": "approved",
+   "test_result": null,
+   "message": "Local-only run: no PR created. Review the branch and merge to main yourself."
+  }
+ }
+}
