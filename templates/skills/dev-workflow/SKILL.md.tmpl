@@ -24,7 +24,13 @@ Run the dev-workflow orchestrator for the given ticket.
 
 ## Re-running after plan approval
 
-After a human approves the ImplementationPlan, re-invoke with the same ticket ID to continue from the Implementation stage. The workflow does not resume automatically — it requires explicit re-invocation.
+After a human approves the ImplementationPlan, re-invoke with the same ticket ID and `plan_approved: true` to continue from the Implementation stage. The workflow does not resume automatically — it requires explicit re-invocation.
+
+If the human made decisions at approval that change the plan or the acceptance criteria (for example, "do not write X; do Y instead"), pass them as `decisions: "<text>"`. The Developer treats them as overriding the plan, and the Reviewer treats them as overriding the TaskSpec acceptance criteria, so authorised deviations are not flagged.
+
+## Local-only repositories
+
+For a project with no remote, pass `local_only: true`. The workflow creates the branch without pulling or pushing, and stops at a reviewed local branch with no PR.
 
 ## With tests
 
