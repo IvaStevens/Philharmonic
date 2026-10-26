@@ -5,6 +5,9 @@ export const meta = {
     { title: 'Requirements' },
     { title: 'Design' },
     { title: 'Architecture' },
+{{#IF INCLUDE_RTE}}
+    { title: 'Breakdown' },
+{{/IF}}
     { title: 'Implementation' },
     { title: 'Review' },
     { title: 'Testing' },
@@ -19,6 +22,7 @@ const PLAN_APPROVAL = '{{PLAN_APPROVAL}}' === 'y'
 const TESTER_DEFAULT = '{{TESTER_DEFAULT}}' === 'y'
 const HAS_DESIGN_TOOL = '{{DESIGN_TOOL}}' !== '' && '{{DESIGN_TOOL}}' !== 'none'
 const HAS_E2E = '{{E2E_FRAMEWORK}}' !== '' && '{{E2E_FRAMEWORK}}' !== 'none'
+const RTE_ENABLED = '{{INCLUDE_RTE}}' === 'y'
 const HAS_NOTIFICATION = '{{NOTIFICATION_MCP}}' !== '' && '{{NOTIFICATION_MCP}}' !== 'none'
 
 // ─── JSON Schemas for structured outputs ─────────────────────────────────────
@@ -157,15 +161,523 @@ function run(prompt, opts) {
   return agent(projectPreamble + prompt, opts)
 }
 
+function buildProjectPreamble(project) {
+  const projectDir = `${PROJECTS_ROOT}/${project}`
+  return `PROJECT SCOPE: this ticket belongs to the project "${project}". Its directory is ${projectDir}.
+Before doing anything else, cd into ${projectDir}. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in ${PROJECTS_ROOT}/.claude or ${PROJECTS_ROOT}/tickets.
+
+`
+}
+
+{{#IF INCLUDE_RTE}}
+// ─── Release Train Engineer (RTE) ────────────────────────────────────────────
+// With args.rte the approved plan is split into several small PRs ("units")
+// instead of one big one. The run spans several invocations, so progress lives
+// in two files:
+//   <ticket>.rte.json          small control state: stage, the PR units and their status
+//   <ticket>.rte-context.json  the TaskSpec, DesignSpec and ImplementationPlan;
+//                              agents read it by path, so the workflow never holds it
+// Stages: plan (awaiting plan approval) → breakdown (awaiting breakdown approval)
+//         → breakdown-approved (units run as their dependencies merge) → done.
+// Without args.rte none of this runs and the single-PR flow is unchanged.
+
+const RTE_STATE_DIR = '{{RTE_STATE_DIR}}'
+const RTE_MAX_FILES = {{RTE_MAX_FILES}}
+const rteControlPath = (id) => `${RTE_STATE_DIR}/${id}.rte.json`
+const rteContextPath = (id) => `${RTE_STATE_DIR}/${id}.rte-context.json`
+
+const RTE_BREAKDOWN_SCHEMA = {
+  type: 'object',
+  required: ['summary', 'total_prs', 'units'],
+  properties: {
+    summary: { type: 'string' },
+    total_prs: { type: 'integer' },
+    notes: { type: 'string' },
+    units: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['id', 'title', 'purpose', 'branch', 'files', 'file_count', 'depends_on', 'ac_indices'],
+        properties: {
+          id: { type: 'string' },
+          title: { type: 'string' },
+          purpose: { type: 'string' },
+          branch: { type: 'string' },
+          files: { type: 'array', items: { type: 'string' } },
+          file_count: { type: 'integer' },
+          depends_on: { type: 'array', items: { type: 'string' } },
+          ac_indices: { type: 'array', items: { type: 'integer' } },
+          size_note: { type: ['string', 'null'] },
+        },
+      },
+    },
+  },
+}
+
+const RTE_STATE_SCHEMA = {
+  type: 'object',
+  required: ['exists'],
+  properties: { exists: { type: 'boolean' }, state: { type: 'object' } },
+}
+
+const RTE_OK_SCHEMA = {
+  type: 'object',
+  required: ['ok'],
+  properties: { ok: { type: 'boolean' }, error: { type: 'string' } },
+}
+
+const RTE_PR_STATUS_SCHEMA = {
+  type: 'object',
+  required: ['units'],
+  properties: {
+    units: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['id', 'pr_state'],
+        properties: {
+          id: { type: 'string' },
+          pr_state: { type: 'string', enum: ['none', 'open', 'merged', 'closed'] },
+          pr_url: { type: ['string', 'null'] },
+        },
+      },
+    },
+  },
+}
+
+// State files live outside the project, so these helpers use agent() directly:
+// the project preamble forbids touching the tickets directory.
+
+async function rteLoad(id) {
+  const r = await agent(
+    `Read the file ${rteControlPath(id)}.
+If it does not exist, return exists=false. Otherwise parse it as JSON and return exists=true and state set to its exact parsed content. Do not modify anything.`,
+    { label: 'rte-load', phase: 'Breakdown', schema: RTE_STATE_SCHEMA }
+  )
+  return r && r.exists ? r.state : null
+}
+
+async function rteWriteJson(path, label, value) {
+  const r = await agent(
+    `Create the directory for ${path} if needed, then write the following JSON to ${path} exactly as given (same keys, same values, pretty-printed with 2 spaces). Then re-read the file and confirm it parses as JSON. Report ok=true only if it does.
+
+${JSON.stringify(value, null, 2)}`,
+    { label, phase: 'Breakdown', schema: RTE_OK_SCHEMA }
+  )
+  if (!r || !r.ok) throw new Error(`Could not write ${path}: ${r?.error || 'unknown error'}`)
+}
+
+const rteSave = (st) => rteWriteJson(rteControlPath(st.ticket.ticket_id), 'rte-save-state', st)
+
+// ── Pure helpers ─────────────────────────────────────────────────────────────
+
+// Groups units into waves: every unit in a wave depends only on earlier waves.
+// Returns null when the dependencies contain a cycle.
+function rteWaves(units) {
+  const remaining = new Map(units.map((u) => [u.id, new Set(u.depends_on || [])]))
+  const waves = []
+  while (remaining.size > 0) {
+    const wave = [...remaining.entries()].filter((e) => e[1].size === 0).map((e) => e[0])
+    if (wave.length === 0) return null
+    waves.push(wave)
+    for (const id of wave) remaining.delete(id)
+    for (const deps of remaining.values()) for (const id of wave) deps.delete(id)
+  }
+  return waves
+}
+
+function validateBreakdown(b, acCount) {
+  const units = b?.units
+  if (!Array.isArray(units) || units.length === 0) return ['The breakdown has no units.']
+  const problems = []
+  const ids = new Set()
+  const branches = new Set()
+  for (const u of units) {
+    if (ids.has(u.id)) problems.push(`Duplicate unit id ${u.id}.`)
+    ids.add(u.id)
+    if (!u.branch || branches.has(u.branch)) problems.push(`Unit ${u.id} has a missing or duplicate branch name.`)
+    branches.add(u.branch)
+    if (!Array.isArray(u.files) || u.files.length === 0) problems.push(`Unit ${u.id} lists no files.`)
+  }
+  for (const u of units) {
+    for (const d of u.depends_on || []) {
+      if (d === u.id) problems.push(`Unit ${u.id} depends on itself.`)
+      else if (!ids.has(d)) problems.push(`Unit ${u.id} depends on unknown unit ${d}.`)
+    }
+  }
+  if (problems.length === 0 && rteWaves(units) === null) problems.push('The dependencies between units contain a cycle.')
+  if (acCount > 0) {
+    const covered = new Set(units.flatMap((u) => u.ac_indices || []))
+    for (let i = 0; i < acCount; i++) {
+      if (!covered.has(i)) problems.push(`Acceptance criterion index ${i} is not covered by any unit.`)
+    }
+    for (const i of covered) {
+      if (!Number.isInteger(i) || i < 0 || i >= acCount) problems.push(`ac_indices contains ${i}, which is out of range (0 to ${acCount - 1}).`)
+    }
+  }
+  return problems
+}
+
+function rteWarnings(units) {
+  return units
+    .filter((u) => u.file_count > RTE_MAX_FILES)
+    .map((u) => `${u.id} has ${u.file_count} files (guideline ${RTE_MAX_FILES}): ${u.size_note || 'no reason given'}`)
+}
+
+function rteView(st) {
+  const units = st.breakdown.units
+  return {
+    ticket_id: st.ticket.ticket_id,
+    total_prs: units.length,
+    summary: st.breakdown.summary,
+    waves: rteWaves(units),
+    prs: units.map((u) => ({
+      id: u.id,
+      title: u.title,
+      purpose: u.purpose,
+      files: u.file_count,
+      depends_on: u.depends_on,
+      branch: u.branch,
+      status: u.status,
+      pr_url: u.pr_url || null,
+    })),
+    warnings: rteWarnings(units),
+    notes: st.breakdown.notes || '',
+  }
+}
+
+// Text the Developer, Reviewer, Tester, DevOps and Study Guide each get for one unit.
+function unitNotes(unit, ctx) {
+  const units = ctx.units
+  const index = units.findIndex((u) => u.id === unit.id) + 1
+  const others = units.filter((u) => u.id !== unit.id).map((u) => `- ${u.id}: ${u.title} — ${u.purpose}`).join('\n') || '(none)'
+  const acs = unit.ac_indices.join(', ')
+  const where = unit.worktree
+    ? `Work ONLY in the git worktree ${unit.worktree} (branch ${unit.branch}); other PRs are being built in parallel in other worktrees.`
+    : `Work on branch ${unit.branch}.`
+  const head = `PR ${index} of ${units.length} for this ticket: "${unit.title}".`
+  return {
+    preamble: unit.worktree
+      ? `UNIT WORKTREE: this task runs in the git worktree ${unit.worktree}, not the main checkout. Where the project scope above says to cd into the project directory, cd into ${unit.worktree} instead and work only there.\n\n`
+      : '',
+    dev: `UNIT SCOPE — this is ${head}
+Purpose: ${unit.purpose}
+Implement ONLY the changes in this PR. Its files:
+${unit.files.map((f) => `- ${f}`).join('\n')}
+The other PRs in this series are built separately; do not implement them here:
+${others}
+Acceptance criteria this PR is responsible for (zero-based indices into task_spec.acceptance_criteria): ${acs}
+This PR must build and pass its tests on its own after it merges, without code from any unmerged PR. ${where}
+
+`,
+    review: `UNIT SCOPE — you are reviewing ${head}
+Review only this PR, against the acceptance criteria it is responsible for (zero-based indices into task_spec.acceptance_criteria): ${acs}. Criteria that belong to other PRs in the series are not findings. Also check that this PR builds and passes on its own and does not rely on code from a PR that has not merged. Its files per the breakdown:
+${unit.files.map((f) => `- ${f}`).join('\n')}
+
+`,
+    devops: `UNIT SCOPE — this is ${head}
+Branch: ${unit.branch}. Base: {{PR_TARGET_BRANCH}}. Title the PR "[${ctx.ticket.ticket_id}] (${index}/${units.length}) ${unit.title}". In the PR body, say that it is part ${index} of ${units.length}, summarise its purpose, list the PRs it depends on (${unit.depends_on.join(', ') || 'none'}), and name the other PRs in the series.
+
+`,
+    guide: `UNIT SCOPE — this is ${head} Cover only the patterns in this PR. Name your output so it does not overwrite the study entries for the other PRs of this ticket (append "-${unit.id}").
+
+`,
+  }
+}
+
+// ── Stage: plan saved, waiting for plan approval ─────────────────────────────
+
+async function rteStart(taskSpec, designSpec, implPlan) {
+  const id = taskSpec.ticket_id
+  await rteWriteJson(rteContextPath(id), 'rte-save-context', {
+    task_spec: taskSpec,
+    design_spec: designSpec,
+    impl_plan: implPlan,
+  })
+  const st = {
+    stage: 'plan',
+    ticket: {
+      ticket_id: id,
+      title: taskSpec.title,
+      branch: taskSpec.branch,
+      project: taskSpec.project || null,
+      ac_count: (taskSpec.acceptance_criteria || []).length,
+    },
+    context_path: rteContextPath(id),
+    decisions: args?.decisions || '',
+    breakdown: null,
+  }
+  await rteSave(st)
+  return st
+}
+
+// ── Stage: RTE splits the plan, Nag reviews, human approves ──────────────────
+
+async function rteBreakdownStage(st, feedback) {
+  phase('Breakdown')
+  log('RTE: splitting the plan into pull requests...')
+  const acCount = st.ticket.ac_count
+  const base = `You are the Release Train Engineer (RTE) agent for {{PROJECT_NAME}}.
+
+Ticket: ${st.ticket.ticket_id} — ${st.ticket.title}
+Ticket branch name: ${st.ticket.branch}
+Acceptance criteria: ${acCount} (zero-based indices 0 to ${acCount - 1})
+
+The TaskSpec, DesignSpec and ImplementationPlan are stored in ${st.context_path} under the keys task_spec, design_spec and impl_plan. Read that file first.
+
+PR size guideline: roughly 10 to ${RTE_MAX_FILES} files per PR (a guideline, not a hard cap).
+${st.decisions ? `\nHuman decisions made at plan approval (these override the plan where they conflict):\n${st.decisions}\n` : ''}`
+
+  const prior = st.breakdown
+    ? { summary: st.breakdown.summary, total_prs: st.breakdown.units.length, notes: st.breakdown.notes, units: st.breakdown.units.map((u) => ({ id: u.id, title: u.title, purpose: u.purpose, branch: u.branch, files: u.files, file_count: u.file_count, depends_on: u.depends_on, ac_indices: u.ac_indices, size_note: u.size_note })) }
+    : null
+
+  let breakdown = await run(
+    base + (feedback && prior
+      ? `\nYour previous RteBreakdown:\n${JSON.stringify(prior, null, 2)}\n\nThe human reviewed it and gave this feedback. Revise the breakdown to address it and produce a new RteBreakdown:\n${feedback}`
+      : '\nProduce the RteBreakdown according to your agent instructions.'),
+    { agentType: 'rte', schema: RTE_BREAKDOWN_SCHEMA, phase: 'Breakdown' }
+  )
+
+  const check = (b) => (b ? validateBreakdown(b, acCount) : ['The RTE returned no breakdown.'])
+  let problems = check(breakdown)
+  for (let attempt = 0; problems.length > 0 && attempt < 2; attempt++) {
+    log(`RTE breakdown has ${problems.length} structural problem(s) — asking the RTE to fix them...`)
+    breakdown = await run(
+      `${base}
+Your RteBreakdown has structural problems. Fix them and produce a corrected RteBreakdown.
+
+Problems:
+${problems.map((p) => `- ${p}`).join('\n')}
+
+Current RteBreakdown:
+${JSON.stringify(breakdown, null, 2)}`,
+      { agentType: 'rte', schema: RTE_BREAKDOWN_SCHEMA, phase: 'Breakdown' }
+    )
+    problems = check(breakdown)
+  }
+  if (problems.length > 0) {
+    log(`HALTED — RTE could not produce a valid breakdown: ${problems.join(' ')}`)
+    return { halted: true, stage: 'rte', ticket_id: st.ticket.ticket_id, problems }
+  }
+
+  log('Nag: stress-testing RteBreakdown...')
+  const nag = await run(
+    `You are the Nag agent for {{PROJECT_NAME}}.
+
+Agent type reviewed: rte
+Artifact: RteBreakdown
+
+The TaskSpec and ImplementationPlan are stored in ${st.context_path} under the keys task_spec and impl_plan.
+
+RteBreakdown to review:
+${JSON.stringify(breakdown, null, 2)}`,
+    { agentType: 'nag', schema: NAG_RESULT_SCHEMA, phase: 'Breakdown' }
+  )
+  if (nag?.verdict === 'fail' && nag.concerns?.length > 0) {
+    log(`Nag raised ${nag.concerns.length} concern(s) on RteBreakdown — sending back to the RTE for revision...`)
+    const revised = await run(
+      `${base}
+Your RteBreakdown was reviewed and the following concerns were raised. Address them and produce a revised RteBreakdown.
+
+Current RteBreakdown:
+${JSON.stringify(breakdown, null, 2)}
+
+Nag concerns:
+${JSON.stringify(nag.concerns, null, 2)}`,
+      { agentType: 'rte', schema: RTE_BREAKDOWN_SCHEMA, phase: 'Breakdown' }
+    )
+    if (revised && check(revised).length === 0) breakdown = revised
+    else log('The revised breakdown was invalid; keeping the previous one.')
+  } else {
+    log('Nag: RteBreakdown passed.')
+  }
+
+  st.breakdown = {
+    summary: breakdown.summary,
+    notes: breakdown.notes || '',
+    units: breakdown.units.map((u) => ({
+      ...u,
+      file_count: u.files.length,
+      status: 'pending',
+      pr_url: null,
+    })),
+  }
+  st.stage = 'breakdown'
+  await rteSave(st)
+  log('*** PAUSED — Human approval required for the PR breakdown. ***')
+  return {
+    paused: true,
+    stage: 'breakdown-approval',
+    rte: true,
+    ...rteView(st),
+    next: 'Approve: re-run with rte: true and breakdown_approved: true. Change it: re-run with rte: true and breakdown_feedback: "<text>".',
+  }
+}
+
+// ── Stage: run every PR whose dependencies have merged ───────────────────────
+
+async function rteSyncPrs(st) {
+  const units = st.breakdown.units.filter((u) => u.status === 'pr_open')
+  if (units.length === 0) return
+  const r = await run(
+    `Check the state of the pull request for each branch below, in the current repository. For each branch run:
+  gh pr list --head <branch> --state all --json number,state,url,mergedAt
+Report pr_state "merged" if the PR was merged, "open" if it is open, "closed" if it was closed without merging, and "none" if no PR exists. Read only: do not change anything.
+
+Branches:
+${units.map((u) => `- ${u.id}: ${u.branch}`).join('\n')}`,
+    { label: 'rte-sync-prs', phase: 'Deploy', schema: RTE_PR_STATUS_SCHEMA }
+  )
+  for (const s of r?.units || []) {
+    const u = st.breakdown.units.find((x) => x.id === s.id)
+    if (!u) continue
+    if (s.pr_state === 'merged') u.status = 'merged'
+    else if (s.pr_state === 'closed') u.status = 'closed'
+    if (s.pr_url) u.pr_url = s.pr_url
+  }
+}
+
+async function rteExecuteStage(st) {
+  const units = st.breakdown.units
+  const byId = (id) => units.find((u) => u.id === id)
+  const brief = (u) => ({ id: u.id, title: u.title, branch: u.branch, status: u.status, pr_url: u.pr_url || null })
+
+  await rteSyncPrs(st)
+
+  const ready = units.filter(
+    (u) => (u.status === 'pending' || u.status === 'halted') && (u.depends_on || []).every((d) => byId(d)?.status === 'merged')
+  )
+  let ran = []
+
+  if (ready.length > 0) {
+    const wave = ready.length > 1 && !args?.sequential
+    const worktreeBase = SCOPED ? `${PROJECTS_ROOT}/.worktrees` : '../.worktrees'
+    for (const u of ready) u.worktree = wave ? `${worktreeBase}/${st.ticket.ticket_id}-${u.id}` : null
+    log(`RTE: building ${ready.length} PR(s) ${wave ? 'in parallel' : 'one after another'}: ${ready.map((u) => u.id).join(', ')}`)
+
+    const ctx = {
+      ticket: st.ticket,
+      taskSpecText: `Stored in ${st.context_path} under the key task_spec. Read that file first.`,
+      implPlanText: `Stored in ${st.context_path} under the key impl_plan.`,
+      designBlock: `DesignSpec: stored in ${st.context_path} under the key design_spec (it may be null).`,
+      decisions: [st.decisions, args?.decisions].filter(Boolean).join('\n'),
+      with_tests,
+      units,
+    }
+    if (args?.decisions) st.decisions = ctx.decisions
+
+    const runOne = (u) => runUnit(u, ctx)
+    let results
+    if (wave) {
+      results = await parallel(ready.map((u) => () => runOne(u)))
+    } else {
+      results = []
+      for (const u of ready) results.push(await runOne(u))
+    }
+
+    ready.forEach((u, i) => {
+      const r = results[i]
+      if (!r || r.halted) {
+        u.status = 'halted'
+        u.halt = r ? { stage: r.stage, reason: r.reason || r.notes || (r.blockers || []).join('; ') || null } : { stage: 'unknown', reason: 'the unit produced no result' }
+      } else {
+        u.status = 'pr_open'
+        u.pr_url = r.pr_url || null
+        delete u.halt
+      }
+      delete u.worktree
+    })
+    ran = ready.map(brief)
+  }
+
+  const allMerged = units.every((u) => u.status === 'merged')
+  st.stage = allMerged ? 'done' : 'breakdown-approved'
+  await rteSave(st)
+
+  const waitingOnMerge = units.filter((u) => u.status === 'pr_open').map(brief)
+  const blocked = units
+    .filter((u) => u.status === 'pending')
+    .map((u) => ({ id: u.id, title: u.title, waiting_for: (u.depends_on || []).filter((d) => byId(d)?.status !== 'merged') }))
+  const halted = units.filter((u) => u.status === 'halted').map((u) => ({ ...brief(u), halt: u.halt }))
+  const closed = units.filter((u) => u.status === 'closed').map(brief)
+
+  let message
+  if (allMerged) message = 'Every PR in the series has merged. The ticket is complete.'
+  else if (halted.length > 0) message = 'Some PRs halted. Fix the cause, then re-run with rte: true to retry them.'
+  else if (closed.length > 0) message = 'A PR was closed without merging. Decide what to do with it; re-run with rte: true and restart: true to start over.'
+  else message = 'Review and merge the open PRs, then re-run with rte: true to build the PRs that were waiting on them.'
+
+  return {
+    rte: true,
+    ticket_id: st.ticket.ticket_id,
+    stage: st.stage,
+    ran,
+    waiting_on_merge: waitingOnMerge,
+    blocked_until_merge: blocked,
+    halted,
+    closed_without_merge: closed,
+    message,
+  }
+}
+
+// ── Entry: decide which stage this invocation is in ──────────────────────────
+// Returns a result to return from the workflow, or null to start planning.
+
+async function rteResume() {
+  if (args?.restart) return null
+  const st = await rteLoad(ticket_id)
+  if (!st) return null
+  if (SCOPED && st.ticket?.project) projectPreamble = buildProjectPreamble(st.ticket.project)
+
+  if (st.stage === 'done') {
+    return { rte: true, ticket_id, stage: 'done', message: 'Every PR for this ticket has already merged. Pass restart: true to plan it again from scratch.' }
+  }
+  if (args?.decisions && st.stage !== 'breakdown-approved') {
+    st.decisions = [st.decisions, args.decisions].filter(Boolean).join('\n')
+  }
+  if (st.stage === 'plan') {
+    if (PLAN_APPROVAL && !args?.plan_approved) {
+      return { paused: true, stage: 'plan-approval', rte: true, ticket_id, message: `The plan is still awaiting approval (stored in ${st.context_path}). Re-run with rte: true and plan_approved: true.` }
+    }
+    return await rteBreakdownStage(st, args?.breakdown_feedback || null)
+  }
+  if (st.stage === 'breakdown') {
+    if (args?.breakdown_approved) {
+      st.stage = 'breakdown-approved'
+      await rteSave(st)
+      return await rteExecuteStage(st)
+    }
+    if (args?.breakdown_feedback) return await rteBreakdownStage(st, args.breakdown_feedback)
+    return { paused: true, stage: 'breakdown-approval', rte: true, ...rteView(st), next: 'Approve: re-run with rte: true and breakdown_approved: true. Change it: re-run with rte: true and breakdown_feedback: "<text>".' }
+  }
+  return await rteExecuteStage(st)
+}
+{{/IF}}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-const { ticket_id, with_tests = TESTER_DEFAULT, local_only = false } = args || {}
+const { ticket_id, with_tests = TESTER_DEFAULT, local_only = false, rte = false } = args || {}
 
 if (!ticket_id) {
   throw new Error('args.ticket_id is required. Usage: { ticket_id: "PROJ-1234" }')
 }
 
+if (rte && !RTE_ENABLED) {
+  throw new Error('args.rte was set, but this workflow was generated without the Release Train Engineer. Add it with: generate-workflow.py --config <config> --add-agent rte')
+}
+if (rte && local_only) {
+  throw new Error('args.rte cannot be combined with local_only: the RTE needs a remote to detect merged PRs.')
+}
+
 log(`Starting dev workflow for ticket: ${ticket_id}`)
+
+{{#IF INCLUDE_RTE}}
+if (rte) {
+  const resumed = await rteResume()
+  if (resumed) return resumed
+}
+{{/IF}}
 
 // ── Step 1: Product Owner ─────────────────────────────────────────────────────
 phase('Requirements')
@@ -194,10 +706,7 @@ if (SCOPED) {
     return { halted: true, stage: 'project-resolution', reason: 'Ticket must name exactly one project directory.' }
   }
   const projectDir = `${PROJECTS_ROOT}/${project}`
-  projectPreamble = `PROJECT SCOPE: this ticket belongs to the project "${project}". Its directory is ${projectDir}.
-Before doing anything else, cd into ${projectDir}. All file reads and writes, shell commands, git operations, tests, and PRs must happen inside that directory and its repository. Do not read, modify, or commit anything in other projects or in ${PROJECTS_ROOT}/.claude or ${PROJECTS_ROOT}/tickets.
-
-`
+  projectPreamble = buildProjectPreamble(project)
   log(`Project scope: ${projectDir}`)
 }
 
@@ -238,7 +747,7 @@ ${JSON.stringify(nagResult.concerns, null, 2)}`,
 
 // ── Step 2: Create branch ─────────────────────────────────────────────────────
 log(`Creating branch: ${taskSpec.branch}`)
-const branchResult = await run(
+const branchResult = rte ? { ok: true } : await run(
   local_only
     ? `Create git branch "${taskSpec.branch}" from {{PR_TARGET_BRANCH}}. This repository is local-only (no remote) — do NOT pull or push.
 
@@ -375,6 +884,27 @@ ${JSON.stringify(nagResult.concerns, null, 2)}`,
   log('Nag: ImplementationPlan passed.')
 }
 
+{{#IF INCLUDE_RTE}}
+// With the RTE the plan is saved so later invocations can continue without
+// re-planning; the branch for each PR is created per unit, not here.
+if (rte) {
+  const st = await rteStart(taskSpec, designSpec, implPlan)
+  if (PLAN_APPROVAL && !args?.plan_approved) {
+    log('*** PAUSED — Human approval required before the plan is split into PRs. ***')
+    return {
+      paused: true,
+      stage: 'plan-approval',
+      rte: true,
+      task_spec: taskSpec,
+      design_spec: designSpec,
+      implementation_plan: implPlan,
+      next: 'Approve: re-run with rte: true and plan_approved: true. The RTE then splits the plan into PRs and pauses again for you to approve the breakdown.',
+    }
+  }
+  return await rteBreakdownStage(st, null)
+}
+{{/IF}}
+
 // Human approval gate
 if (PLAN_APPROVAL && !args?.plan_approved) {
   log('*** PAUSED — Human approval required before implementation begins. ***')
@@ -388,6 +918,68 @@ if (PLAN_APPROVAL && !args?.plan_approved) {
   }
 }
 
+
+// ── Steps 5–8: implement, review, test, open the PR ──────────────────────────
+return await runUnit(null, {
+  ticket: taskSpec,
+  taskSpecText: JSON.stringify(taskSpec, null, 2),
+  implPlanText: JSON.stringify(implPlan, null, 2),
+  designBlock: designSpec ? `DesignSpec:\n${JSON.stringify(designSpec, null, 2)}` : '',
+  decisions: args?.decisions,
+  with_tests,
+})
+
+// ─── Unit execution ──────────────────────────────────────────────────────────
+// One unit of work becomes one PR: Developer → Reviewer (retry loop) → Tester →
+// Study Guide in parallel with DevOps → PR review loop. Without the RTE the whole
+// plan is a single unit (unit === null), which is the original single-PR flow.
+// The body is deliberately NOT indented: it holds multi-line prompt template
+// literals whose text must stay byte-identical to that flow.
+
+async function runUnit(unit, ctx) {
+const branch = unit ? unit.branch : ctx.ticket.branch
+const notes = unit ? unitNotes(unit, ctx) : { preamble: '', dev: '', review: '', devops: '', guide: '' }
+const devNote = notes.dev
+const reviewNote = notes.review
+const devopsNote = notes.devops
+const guideNote = notes.guide
+const U = unit ? (prompt, opts) => run(notes.preamble + prompt, opts) : run
+const halt = (obj) => (unit ? { ...obj, unit_id: unit.id } : obj)
+
+{{#IF INCLUDE_RTE}}
+if (unit) {
+  phase('Implementation')
+  log(`Preparing branch ${unit.branch} for ${unit.id}...`)
+  const setup = await run(
+    unit.worktree
+      ? `Prepare an isolated git worktree and branch for one pull request. Several PRs are built in parallel, so do not touch the main checkout.
+
+Run, in the project's repository:
+  git fetch origin
+  git worktree add ${unit.worktree} -b ${unit.branch} origin/{{PR_TARGET_BRANCH}}
+  cd ${unit.worktree} && git push -u origin ${unit.branch}
+
+If the branch already exists (a retry), do not recreate or reset it: run "git worktree add ${unit.worktree} ${unit.branch}" instead. If the worktree directory already exists, reuse it.
+If the repository is missing, is not a git repository, or has no remote, create nothing and report ok=false with the error.`
+      : `Prepare the git branch for one pull request.
+
+Run, in the project's repository:
+  git checkout {{PR_TARGET_BRANCH}} && git pull
+  git checkout -b ${unit.branch}
+  git push -u origin ${unit.branch}
+
+If the branch already exists locally or on origin (a retry), check it out and do not recreate or reset it.
+If the repository is missing, is not a git repository, or has no remote, create nothing and report ok=false with the error.`,
+    { label: `branch-${unit.id}`, phase: 'Implementation',
+      schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, error: { type: 'string' } } } }
+  )
+  if (!setup || !setup.ok) {
+    log(`HALTED — could not prepare branch for ${unit.id}: ${setup?.error || 'unknown error'}`)
+    return halt({ halted: true, stage: 'unit-branch', reason: setup?.error })
+  }
+}
+
+{{/IF}}
 // ── Step 5: Developer → Reviewer loop ────────────────────────────────────────
 phase('Implementation')
 
@@ -397,41 +989,41 @@ let internalAttempts = 0
 
 while (internalAttempts < MAX_INTERNAL_RETRIES) {
   log(`Developer: implementing (attempt ${internalAttempts + 1}/${MAX_INTERNAL_RETRIES})...`)
-  implResult = await run(
+  implResult = await U(
     `You are the Developer agent for {{PROJECT_NAME}}.
 
 TaskSpec:
-${JSON.stringify(taskSpec, null, 2)}
+${ctx.taskSpecText}
 
 ImplementationPlan:
-${JSON.stringify(implPlan, null, 2)}
+${ctx.implPlanText}
 
-${designSpec ? `DesignSpec:\n${JSON.stringify(designSpec, null, 2)}` : ''}
-${args?.decisions ? `\nHuman decisions made at plan approval (these override the plan where they conflict):\n${args.decisions}` : ''}
+${ctx.designBlock}
+${ctx.decisions ? `\nHuman decisions made at plan approval (these override the plan where they conflict):\n${ctx.decisions}` : ''}
 ${reviewResult ? `\nPrevious ReviewResult (address these findings):\n${JSON.stringify(reviewResult, null, 2)}` : ''}
 
-Implement the plan, run tests, and produce an ImplementationResult.`,
+${devNote}Implement the plan, run tests, and produce an ImplementationResult.`,
     { agentType: 'implementer', schema: IMPL_RESULT_SCHEMA, phase: 'Implementation' }
   )
 
   if (!implResult || implResult.status === 'blocked') {
     log(`HALTED — Developer blocked: ${implResult?.blockers?.join(', ')}`)
-    return { halted: true, stage: 'developer', blockers: implResult?.blockers }
+    return halt({ halted: true, stage: 'developer', blockers: implResult?.blockers })
   }
 
   phase('Review')
   log('Reviewer: verifying implementation...')
-  reviewResult = await run(
+  reviewResult = await U(
     `You are the Reviewer agent for {{PROJECT_NAME}}.
 
 TaskSpec:
-${JSON.stringify(taskSpec, null, 2)}
+${ctx.taskSpecText}
 
 ImplementationResult:
 ${JSON.stringify(implResult, null, 2)}
-${args?.decisions ? `\nHuman decisions made at plan approval (these override the TaskSpec acceptance criteria where they conflict; do not flag deviations they authorise):\n${args.decisions}` : ''}
+${ctx.decisions ? `\nHuman decisions made at plan approval (these override the TaskSpec acceptance criteria where they conflict; do not flag deviations they authorise):\n${ctx.decisions}` : ''}
 
-Run your configured review skills and produce a ReviewResult.`,
+${reviewNote}Run your configured review skills and produce a ReviewResult.`,
     { agentType: 'reviewer', schema: REVIEW_RESULT_SCHEMA, phase: 'Review' }
   )
 
@@ -447,20 +1039,20 @@ Run your configured review skills and produce a ReviewResult.`,
 
 if (reviewResult.status !== 'approved') {
   log(`HALTED — Reviewer still requesting changes after ${MAX_INTERNAL_RETRIES} attempts.`)
-  return { halted: true, stage: 'review-loop', review_result: reviewResult }
+  return halt({ halted: true, stage: 'review-loop', review_result: reviewResult })
 }
 
 // ── Step 6: Tester (optional) ─────────────────────────────────────────────────
 let testResult = null
 
-if (HAS_E2E && with_tests) {
+if (HAS_E2E && ctx.with_tests) {
   phase('Testing')
   log('Tester: writing and running e2e tests...')
-  testResult = await run(
+  testResult = await U(
     `You are the Tester agent for {{PROJECT_NAME}}.
 
 TaskSpec:
-${JSON.stringify(taskSpec, null, 2)}
+${ctx.taskSpecText}
 
 ImplementationResult:
 ${JSON.stringify(implResult, null, 2)}
@@ -468,24 +1060,24 @@ ${JSON.stringify(implResult, null, 2)}
 ReviewResult (must be approved before you run):
 ${JSON.stringify(reviewResult, null, 2)}
 
-${designSpec ? `DesignSpec:\n${JSON.stringify(designSpec, null, 2)}` : ''}
+${ctx.designBlock}
 
-Write e2e tests for each AC criterion, run them, and report a TestResult.`,
+${reviewNote}Write e2e tests for each AC criterion, run them, and report a TestResult.`,
     { agentType: 'tester', schema: TEST_RESULT_SCHEMA, phase: 'Testing' }
   )
 
   if (testResult.status === 'blocked') {
     log(`HALTED — Tester blocked: ${testResult.blockers?.join(', ')}`)
-    return { halted: true, stage: 'tester', blockers: testResult.blockers }
+    return halt({ halted: true, stage: 'tester', blockers: testResult.blockers })
   }
 }
 
 // ── Local-only: no remote, so no PR. Stop at a reviewed local branch. ────────
 if (local_only) {
-  log(`SUCCESS (local-only) — branch ${taskSpec.branch} is implemented and reviewed. No PR created. Human merge required.`)
+  log(`SUCCESS (local-only) — branch ${branch} is implemented and reviewed. No PR created. Human merge required.`)
   return {
-    ticket_id: taskSpec.ticket_id,
-    branch: taskSpec.branch,
+    ticket_id: ctx.ticket.ticket_id,
+    branch: branch,
     status: 'local_ready',
     files_changed: implResult.files_changed,
     review_status: reviewResult.status,
@@ -509,22 +1101,22 @@ const _initResults = await parallel([
     `You are the Study Guide agent for {{PROJECT_NAME}}.
 
 TaskSpec:
-${JSON.stringify(taskSpec, null, 2)}
+${ctx.taskSpecText}
 
 ImplementationPlan:
-${JSON.stringify(implPlan, null, 2)}
+${ctx.implPlanText}
 
 ImplementationResult:
 ${JSON.stringify(implResult, null, 2)}
 
-Review the Architect's plan and the Developer's implementation. Surface intermediate-to-advanced patterns as study entries and write the context file.`,
+${guideNote}Review the Architect's plan and the Developer's implementation. Surface intermediate-to-advanced patterns as study entries and write the context file.`,
     { agentType: 'study-guide', label: 'study-guide', phase: 'Review' }
   ),
   () => run(
     `You are the DevOps agent for {{PROJECT_NAME}}.
 
 TaskSpec:
-${JSON.stringify(taskSpec, null, 2)}
+${ctx.taskSpecText}
 
 ImplementationResult:
 ${JSON.stringify(implResult, null, 2)}
@@ -534,7 +1126,7 @@ ${JSON.stringify(reviewResult, null, 2)}
 
 ${testResult ? `TestResult:\n${JSON.stringify(testResult, null, 2)}` : ''}
 
-Create the PR, then monitor CI and human review comments. Produce a DeployStatus.`,
+${devopsNote}Create the PR, then monitor CI and human review comments. Produce a DeployStatus.`,
     { agentType: 'devops', schema: DEPLOY_STATUS_SCHEMA, phase: 'Deploy' }
   ),
 ])
@@ -543,11 +1135,11 @@ deployStatus = _initResults[1]
 
 // When Study Guide is not configured, create PR directly
 if (!deployStatus) {
-  deployStatus = await run(
+  deployStatus = await U(
     `You are the DevOps agent for {{PROJECT_NAME}}.
 
 TaskSpec:
-${JSON.stringify(taskSpec, null, 2)}
+${ctx.taskSpecText}
 
 ImplementationResult:
 ${JSON.stringify(implResult, null, 2)}
@@ -557,7 +1149,7 @@ ${JSON.stringify(reviewResult, null, 2)}
 
 ${testResult ? `TestResult:\n${JSON.stringify(testResult, null, 2)}` : ''}
 
-Create the PR, then monitor CI and human review comments. Produce a DeployStatus.`,
+${devopsNote}Create the PR, then monitor CI and human review comments. Produce a DeployStatus.`,
     { agentType: 'devops', schema: DEPLOY_STATUS_SCHEMA, phase: 'Deploy' }
   )
 }
@@ -569,8 +1161,8 @@ while (true) {
     log('CI is green. Awaiting human merge. Workflow complete.')
     {{#IF NOTIFICATION_MCP_ID}}
     // Notify via {{NOTIFICATION_MCP}}
-    await run(
-      `Send a notification via {{NOTIFICATION_MCP}} that the PR for "${taskSpec.ticket_id}: ${taskSpec.title}" is ready for merge.
+    await U(
+      `Send a notification via {{NOTIFICATION_MCP}} that the PR for "${ctx.ticket.ticket_id}: ${ctx.ticket.title}" is ready for merge.
 PR URL: ${deployStatus.pr_url}
 Use {{NOTIFICATION_MCP_ID}}* tools.`,
       { label: 'notify', phase: 'Deploy' }
@@ -581,18 +1173,18 @@ Use {{NOTIFICATION_MCP_ID}}* tools.`,
 
   if (deployStatus.status === 'ci_failing') {
     log(`HALTED — CI is failing: ${deployStatus.ci_failures?.join(', ')}`)
-    return { halted: true, stage: 'devops', ci_failures: deployStatus.ci_failures, pr_url: deployStatus.pr_url }
+    return halt({ halted: true, stage: 'devops', ci_failures: deployStatus.ci_failures, pr_url: deployStatus.pr_url })
   }
 
   if (deployStatus.status === 'blocked') {
     log(`HALTED — DevOps blocked: ${deployStatus.notes}`)
-    return { halted: true, stage: 'devops', notes: deployStatus.notes }
+    return halt({ halted: true, stage: 'devops', notes: deployStatus.notes })
   }
 
   // changes_requested — enter PR review comment loop
   if (prReviewCycles >= MAX_PR_REVIEW_CYCLES) {
     log(`HALTED — Exceeded max PR review cycles (${MAX_PR_REVIEW_CYCLES}).`)
-    return { halted: true, stage: 'pr-review-loop', pr_url: deployStatus.pr_url }
+    return halt({ halted: true, stage: 'pr-review-loop', pr_url: deployStatus.pr_url })
   }
 
   prReviewCycles++
@@ -600,16 +1192,16 @@ Use {{NOTIFICATION_MCP_ID}}* tools.`,
   phase('Implementation')
 
   // Developer evaluates PR review comments
-  implResult = await run(
+  implResult = await U(
     `You are the Developer agent for {{PROJECT_NAME}}.
 
 TaskSpec:
-${JSON.stringify(taskSpec, null, 2)}
+${ctx.taskSpecText}
 
 ImplementationPlan:
-${JSON.stringify(implPlan, null, 2)}
+${ctx.implPlanText}
 
-You received human PR review comments. Evaluate each one and produce an ImplementationResult.
+${devNote}You received human PR review comments. Evaluate each one and produce an ImplementationResult.
 
 Review comments:
 ${JSON.stringify(deployStatus.review_comments, null, 2)}`,
@@ -621,13 +1213,13 @@ ${JSON.stringify(deployStatus.review_comments, null, 2)}`,
     for (const d of implResult.pr_comment_dispositions) {
       if (d.disposition === 'needs_context' && d.escalate_to === 'product_owner') {
         log(`Escalating comment ${d.comment_id} to Product Owner for AC clarification...`)
-        await run(
+        await U(
           `You are the Product Owner agent for {{PROJECT_NAME}}.
 
 A Developer needs clarification on a PR review comment.
 
 TaskSpec:
-${JSON.stringify(taskSpec, null, 2)}
+${ctx.taskSpecText}
 
 Comment: ${d.notes}
 
@@ -637,16 +1229,16 @@ Provide a clear answer that the Developer can act on.`,
         log(`PO clarification received. Returning to Developer.`)
       } else if (d.disposition === 'needs_context' && d.escalate_to === 'architect') {
         log(`Escalating comment ${d.comment_id} to Architect for implementation guidance...`)
-        await run(
+        await U(
           `You are the Architect agent for {{PROJECT_NAME}}.
 
 A Developer needs clarification on a PR review comment about implementation approach.
 
 TaskSpec:
-${JSON.stringify(taskSpec, null, 2)}
+${ctx.taskSpecText}
 
 ImplementationPlan:
-${JSON.stringify(implPlan, null, 2)}
+${ctx.implPlanText}
 
 Comment: ${d.notes}
 
@@ -662,16 +1254,16 @@ Provide a clear answer the Developer can act on.`,
   if (implResult.trigger_review) {
     phase('Review')
     log('Reviewer: re-verifying after PR comment fixes...')
-    reviewResult = await run(
+    reviewResult = await U(
       `You are the Reviewer agent for {{PROJECT_NAME}}.
 
 TaskSpec:
-${JSON.stringify(taskSpec, null, 2)}
+${ctx.taskSpecText}
 
 ImplementationResult (after PR comment fixes):
 ${JSON.stringify(implResult, null, 2)}
 
-Run a focused re-review and produce a ReviewResult.`,
+${reviewNote}Run a focused re-review and produce a ReviewResult.`,
       { agentType: 'reviewer', schema: REVIEW_RESULT_SCHEMA, phase: 'Review' }
     )
 
@@ -679,18 +1271,18 @@ Run a focused re-review and produce a ReviewResult.`,
       internalAttempts++
       if (internalAttempts >= MAX_INTERNAL_RETRIES) {
         log(`HALTED — Reviewer still requesting changes after ${internalAttempts} total attempts.`)
-        return { halted: true, stage: 'review-loop-pr', review_result: reviewResult }
+        return halt({ halted: true, stage: 'review-loop-pr', review_result: reviewResult })
       }
     }
   }
 
   // Poll for updated CI status and review comments
   phase('Deploy')
-  deployStatus = await run(
+  deployStatus = await U(
     `You are the DevOps agent for {{PROJECT_NAME}}.
 
 TaskSpec:
-${JSON.stringify(taskSpec, null, 2)}
+${ctx.taskSpecText}
 
 The PR already exists. Poll for new CI status and human review comments. Produce a DeployStatus.
 PR URL from previous status: ${deployStatus.pr_url}`,
@@ -699,9 +1291,12 @@ PR URL from previous status: ${deployStatus.pr_url}`,
 }
 
 // ── Final result ──────────────────────────────────────────────────────────────
-return {
-  ticket_id: taskSpec.ticket_id,
+const finalResult = {
+  ticket_id: ctx.ticket.ticket_id,
   pr_url: deployStatus?.pr_url,
   status: deployStatus?.status,
   message: 'Workflow complete. Human merge required.',
+}
+if (unit) finalResult.unit_id = unit.id
+return finalResult
 }

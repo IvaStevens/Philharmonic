@@ -18,7 +18,7 @@ Run the dev-workflow orchestrator for the given ticket.
 ## Steps
 
 1. Invoke the Workflow tool with script at `{{OUTPUT_DIR}}/workflows/dev-workflow.js`
-2. Pass args: `{ ticket_id: "$ARGUMENTS" }`
+{{#IF NO_RTE}}2. Pass args: `{ ticket_id: "$ARGUMENTS" }`{{/IF}}{{#IF INCLUDE_RTE}}2. Parse `$ARGUMENTS`: the first word is the ticket ID. Pass `{ ticket_id: "<ID>" }`, adding `rte: true` for `--rte`, `sequential: true` for `--sequential` and `with_tests: true` for `--with-tests`. Without `--rte` the workflow builds the whole ticket as one PR.{{/IF}}
 3. If the workflow returns `paused: true` (awaiting plan approval), show the ImplementationPlan to the user and wait for them to confirm before re-running
 4. Report the final DeployStatus (or halt reason) to the user
 
@@ -38,4 +38,17 @@ To include the Tester stage, pass `with_tests: true`:
 
 ```
 Workflow({ scriptPath: '{{OUTPUT_DIR}}/workflows/dev-workflow.js', args: { ticket_id: "TICKET-123", with_tests: true } })
-```
+```{{#IF INCLUDE_RTE}}
+
+## Splitting the work into several PRs (`--rte`)
+
+`/dev-workflow TICKET-123 --rte` sends the approved plan through the Release Train Engineer (RTE). It splits the work into a few small PRs (about 10 to {{RTE_MAX_FILES}} files each), builds the independent ones in parallel and the dependent ones in series, and runs the Developer, Reviewer, Study Guide and DevOps agents once per PR. Without `--rte` nothing changes.
+
+The run takes several invocations. Call the Workflow tool again with the same `ticket_id` and `rte: true` each time; progress is saved in `{{RTE_STATE_DIR}}/<TICKET>.rte.json`, so the workflow knows which stage it is in.
+
+1. **Plan.** The first run plans the ticket and returns `paused: true, stage: "plan-approval"`. Show the ImplementationPlan and wait for the human. To continue, re-invoke with `plan_approved: true` (and `decisions: "<text>"` if the human changed anything).
+2. **Breakdown.** The RTE splits the plan and the workflow returns `paused: true, stage: "breakdown-approval"`. Show the human, concisely: the total number of PRs, the waves (PRs in the same wave can be built in parallel), and for each PR its id, title, purpose, file count and dependencies, plus any `warnings` and `notes`. To approve, re-invoke with `breakdown_approved: true`. To change it, re-invoke with `breakdown_feedback: "<what to change>"`, which sends it back to the RTE.
+3. **Build.** The workflow builds every PR whose dependencies have merged and opens each PR. Report each PR's URL, which PRs are waiting for a merge (`waiting_on_merge`), which are waiting on others (`blocked_until_merge`) and any that halted. Never merge for the human. After they merge the open PRs, re-invoke with `rte: true` to build the next ones. Repeat until the result says `stage: "done"`.
+
+Pass `sequential: true` to build ready PRs one after another instead of in parallel. Pass `restart: true` to discard the saved state and plan the ticket again. Parallel PRs are built in separate git worktrees under `.worktrees/`; remove a worktree with `git worktree remove` once its PR has merged.
+{{/IF}}

@@ -216,6 +216,12 @@ def collect_config_interactive() -> dict:
 
     print("\n=== Optional agents ===")
     cfg["include_study_guide"] = ask_yn("Include Study Guide agent (surfaces learning moments from plan and diff)?", "n")
+    cfg["include_rte"] = ask_yn(
+        "Include Release Train Engineer (splits a plan into several small PRs; used when the workflow is run with rte: true)?",
+        "n",
+    )
+    if _is_truthy(cfg["include_rte"]):
+        cfg["rte_max_files"] = ask("  Target maximum files per PR (a guideline, not a hard cap)", "20")
 
     print("\n=== Scripts (optional) ===")
     scripts = []
@@ -295,6 +301,14 @@ def build_variables(cfg: dict) -> dict:
         "DEVELOPER_CONSECUTIVE_FAILURE_SKILL": cfg.get("developer_consecutive_failure_skill", ""),
         "DEVELOPER_CONSECUTIVE_FAILURE_THRESHOLD": str(cfg.get("developer_consecutive_failure_threshold", "2")),
         "INCLUDE_STUDY_GUIDE": "y" if _is_truthy(cfg.get("include_study_guide", "")) else "",
+        "INCLUDE_RTE": "y" if _is_truthy(cfg.get("include_rte", "")) else "",
+        "NO_RTE": "" if _is_truthy(cfg.get("include_rte", "")) else "y",
+        "RTE_MAX_FILES": str(cfg.get("rte_max_files", "20")),
+        "RTE_STATE_DIR": (
+            str(Path(cfg["local_tickets_dir"]).resolve())
+            if cfg.get("local_tickets_dir")
+            else str((Path(cfg.get("output_dir", ".claude")) / "rte").resolve())
+        ),
         "SCRIPTS_TABLE": scripts_table,
     }
 
@@ -347,6 +361,12 @@ def generate_files(cfg: dict, output_dir: Path):
     if _is_truthy(variables.get("INCLUDE_STUDY_GUIDE", "")):
         tmpl = load_template("agents/study-guide.md.tmpl")
         write_file(output_dir / "agents" / "study-guide.md", render(tmpl, variables))
+
+    if _is_truthy(variables.get("INCLUDE_RTE", "")):
+        tmpl = load_template("agents/rte.md.tmpl")
+        write_file(output_dir / "agents" / "rte.md", render(tmpl, variables))
+        tmpl = load_template("schemas/rte-breakdown.json.tmpl")
+        write_file(output_dir / "schemas" / "rte-breakdown.json", render(tmpl, variables))
 
     # Ticket writer (local tickets only)
     if _is_truthy(variables.get("LOCAL_TICKETS_DIR", "")):
@@ -407,8 +427,19 @@ def _add_study_guide(cfg: dict) -> dict:
     return cfg
 
 
+def _add_rte(cfg: dict) -> dict:
+    print("\nAdding: Release Train Engineer (RTE) agent")
+    print("  Splits an approved plan into a few small PRs, in parallel or in series.")
+    print("  Used when the workflow is run with rte: true; runs without it are unchanged.")
+    cfg = {**cfg, "include_rte": "y"}
+    cfg.setdefault("rte_max_files", "20")
+    print("  include_rte set to y")
+    return cfg
+
+
 ADD_AGENT_HANDLERS: dict = {
     "study-guide": _add_study_guide,
+    "rte": _add_rte,
 }
 
 
