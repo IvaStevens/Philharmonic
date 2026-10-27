@@ -543,6 +543,11 @@ async function rteExecuteStage(st) {
   const byId = (id) => units.find((u) => u.id === id)
   const brief = (u) => ({ id: u.id, title: u.title, branch: u.branch, status: u.status, pr_url: u.pr_url || null })
 
+  // Decisions given with this invocation join the saved ones, once.
+  if (args?.decisions && !(st.decisions || '').includes(args.decisions)) {
+    st.decisions = [st.decisions, args.decisions].filter(Boolean).join('\n')
+  }
+
   await rteSyncPrs(st)
 
   const ready = units.filter(
@@ -561,11 +566,10 @@ async function rteExecuteStage(st) {
       taskSpecText: `Stored in ${st.context_path} under the key task_spec. Read that file first.`,
       implPlanText: `Stored in ${st.context_path} under the key impl_plan.`,
       designBlock: `DesignSpec: stored in ${st.context_path} under the key design_spec (it may be null).`,
-      decisions: [st.decisions, args?.decisions].filter(Boolean).join('\n'),
+      decisions: st.decisions,
       with_tests,
       units,
     }
-    if (args?.decisions) st.decisions = ctx.decisions
 
     const runOne = (u) => runUnit(u, ctx)
     let results

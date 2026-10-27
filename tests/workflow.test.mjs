@@ -236,6 +236,13 @@ test('decisions given at approval reach the Developer and the Reviewer of every 
   assert.match(state(files).decisions, /skip the harness/)
 })
 
+test('decisions passed together with the approval are not repeated in the prompt', async () => {
+  const files = await approved([unit('pr1', [], [0, 1, 2])])
+  const r = await runWorkflow(rteScript, { ticket_id: 'T-1', rte: true, breakdown_approved: true, decisions: 'trim the tests' }, { files })
+  const prompt = agentCalls(r, 'implementer')[0].prompt
+  assert.equal(prompt.split('trim the tests').length - 1, 1)
+})
+
 test('restart: true discards saved state and plans again', async () => {
   const files = await approved([unit('pr1', [], [0, 1, 2])])
   const r = await runWorkflow(rteScript, { ticket_id: 'T-1', rte: true, restart: true }, { files })
